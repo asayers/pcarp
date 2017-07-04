@@ -1,6 +1,8 @@
 [package]
+authors = ["Alex Sayers <alex.sayers@gmail.com>"]
 name = "pcapng"
 version = "0.1.0"
-authors = ["Alex Sayers <alex.sayers@gmail.com>"]
 
 [dependencies]
+byteorder = "1.0.0"
+log = "0.3.8"
