@@ -30,6 +30,7 @@ impl Section {
                 None
             }
             Block::InterfaceDescription(x) => {
+                info!("New interface: {:?}", x);
                 if x.snap_len > BUF_CAPACITY as u32 {
                     warn!("The max packet length for this interface is greater than the length of our buffer.");
                 }
@@ -67,6 +68,7 @@ impl Section {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Packet<'a> {
     pub timestamp: Duration,
     pub link_type: LinkType,

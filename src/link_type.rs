@@ -1,4 +1,5 @@
 #[allow(non_camel_case_types)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LinkType {
     /// No link layer information. A packet saved with this link layer contains a raw L3 packet
     /// preceded by a 32-bit host-byte-order AF_ value indicating the specific L3 type.
