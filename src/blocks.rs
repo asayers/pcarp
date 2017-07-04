@@ -1,9 +1,9 @@
-use byteorder::{ByteOrder, BigEndian, LittleEndian};
+use byteorder::ByteOrder;
 use types::*;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Block<'a> {
-    SectionHeader(SectionHeader),
+    SectionHeader(SectionHeader<'a>),
     InterfaceDescription(InterfaceDescription),
     ObsoletePacket(ObsoletePacket<'a>),
     SimplePacket(SimplePacket<'a>),
@@ -14,8 +14,8 @@ pub enum Block<'a> {
     Arinc429,         // ignored
 }
 
-impl<'a> From<SectionHeader> for Block<'a> {
-    fn from(x: SectionHeader) -> Self { Block::SectionHeader(x) }
+impl<'a> From<SectionHeader<'a>> for Block<'a> {
+    fn from(x: SectionHeader<'a>) -> Self { Block::SectionHeader(x) }
 }
 impl<'a> From<InterfaceDescription> for Block<'a> {
     fn from(x: InterfaceDescription) -> Self { Block::InterfaceDescription(x) }
@@ -37,19 +37,28 @@ impl<'a> From<EnhancedPacket<'a>> for Block<'a> {
 }
 
 impl<'a> Block<'a> {
-    pub fn parse<B: ByteOrder>(block_type: u32, buf: &'a [u8]) -> Result<Block<'a>> {
-        match block_type {
-            0x0A0D0D0A => Ok(Self::from(SectionHeader::parse::<B>(buf))),
-            0x00000001 => Ok(Self::from(InterfaceDescription::parse::<B>(buf))),
-            0x00000002 => Ok(Self::from(ObsoletePacket::parse::<B>(buf))),
-            0x00000003 => Ok(Self::from(SimplePacket::parse::<B>(buf))),
-            0x00000004 => Ok(Self::from(NameResolution::parse::<B>(buf))),
-            0x00000005 => Ok(Self::from(InterfaceStatistics::parse::<B>(buf))),
-            0x00000006 => Ok(Self::from(EnhancedPacket::parse::<B>(buf))),
-            0x00000007 => Ok(Block::IRIGTimestamp),
-            0x00000008 => Ok(Block::Arinc429),
-            n => Err(Error::UnknownBlockType(n)),
-        }
+    pub fn parse<B: ByteOrder>(buf: &'a [u8]) -> Result<(usize, Block<'a>)> {
+        if buf.len() < 8 { return Err(Error::NotEnoughBytes); }
+        let block_type   = B::read_u32(&buf[..4]);
+        let block_length = B::read_u32(&buf[4..8]) as usize;
+        if buf.len() < 12 + block_length { return Err(Error::NotEnoughBytes); }
+        debug!("Got block, type {:x}, len {}", block_type, block_length);
+        let body = &buf[8..block_length - 4];
+        let block_length_2 = B::read_u32(&buf[block_length - 4..block_length]) as usize;
+        assert_eq!(block_length, block_length_2, "Block's start and end lengths don't match");
+        let block = match block_type {
+            0x0A0D0D0A => Self::from(SectionHeader::parse::<B>(body)),
+            0x00000001 => Self::from(InterfaceDescription::parse::<B>(body)),
+            0x00000002 => Self::from(ObsoletePacket::parse::<B>(body)),
+            0x00000003 => Self::from(SimplePacket::parse::<B>(body)),
+            0x00000004 => Self::from(NameResolution::parse::<B>(body)),
+            0x00000005 => Self::from(InterfaceStatistics::parse::<B>(body)),
+            0x00000006 => Self::from(EnhancedPacket::parse::<B>(body)),
+            0x00000007 => Block::IRIGTimestamp,
+            0x00000008 => Block::Arinc429,
+            n => { return Err(Error::UnknownBlockType(n)); }
+        };
+        Ok((block_length, block))
     }
 }
 
@@ -58,7 +67,7 @@ trait ParsableBlock<'a> {
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub struct SectionHeader {
+pub struct SectionHeader<'a> {
     /// Byte-Order Magic: magic number, whose value is the hexadecimal number 0x1A2B3C4D. This
     /// number can be used to distinguish sections that have been saved on little-endian machines
     /// from the ones saved on big-endian machines.
@@ -83,19 +92,19 @@ pub struct SectionHeader {
     /// blocks in the file is 32-bit, this field is not guaranteed to be aligned to a 64-bit
     /// boundary. This could be a problem on 64-bit workstations.
     pub section_length: u64,
-    // /// Options: optionally, a list of options (formatted according to the rules defined in Section
-    // /// 2.5) can be present.
-    // pub options: &'a [u8],
+    /// Options: optionally, a list of options (formatted according to the rules defined in Section
+    /// 2.5) can be present.
+    pub options: &'a [u8],
 }
 
-impl<'a> ParsableBlock<'a> for SectionHeader {
-    fn parse<B: ByteOrder>(buf: &'a [u8]) -> SectionHeader {
+impl<'a> ParsableBlock<'a> for SectionHeader<'a> {
+    fn parse<B: ByteOrder>(buf: &'a [u8]) -> SectionHeader<'a> {
         SectionHeader {
             byte_order_magic: B::read_u32(&buf[0..4]),
             major_version:    B::read_u16(&buf[4..6]),
             minor_version:    B::read_u16(&buf[6..8]),
             section_length:   B::read_u64(&buf[8..16]),
-            // options: &buf[16..],
+            options: &buf[16..],
         }
     }
 }

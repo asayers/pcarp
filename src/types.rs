@@ -1,3 +1,5 @@
+pub const BUF_CAPACITY: usize = 10_000_000;
+
 #[derive(Clone, PartialEq, Debug)]
 pub enum Endianness {
     Big,

@@ -1,26 +1,41 @@
 use blocks::*;
-use byteorder::{ByteOrder, BigEndian, LittleEndian};
+use byteorder::{BigEndian, LittleEndian};
 use link_type::*;
 use std::time::Duration;
 use types::*;
 
 pub struct Section {
-    pub header: Option<SectionHeader>,
+    pub endianness: Endianness,
     pub interfaces: Vec<InterfaceDescription>,
+    pub resolved_names: Vec<()>,
 }
 
 impl Section {
-    pub fn new() -> Section {
+    pub fn new(endianness: Endianness) -> Section {
         Section {
-            header: None,
+            endianness: endianness,
             interfaces: Vec::new(),
+            resolved_names: Vec::new(),
         }
     }
 
-    pub fn handle_block<'a>(&mut self, block: Block<'a>) -> Option<Packet<'a>> {
-        match block {
-            Block::SectionHeader(x) => { self.header = Some(x); None }
-            Block::InterfaceDescription(x) => { self.interfaces.push(x); None }
+    pub fn handle_block<'a>(&mut self, buf: &'a [u8]) -> Result<(usize, Option<Packet<'a>>)> {
+        let (block_length, block) = match self.endianness {
+            Endianness::Big    => Block::parse::<BigEndian>(buf)?,
+            Endianness::Little => Block::parse::<LittleEndian>(buf)?,
+        };
+        let pkt = match block {
+            Block::SectionHeader(x) => {
+                info!("New section: {:?}", x);
+                None
+            }
+            Block::InterfaceDescription(x) => {
+                if x.snap_len > BUF_CAPACITY as u32 {
+                    warn!("The max packet length for this interface is greater than the length of our buffer.");
+                }
+                self.interfaces.push(x);
+                None
+            }
             Block::EnhancedPacket(x) => { Some(self.enhanced_packet(x)) }
             Block::SimplePacket(x) => { None }
             Block::ObsoletePacket(x) => { None }
@@ -28,7 +43,8 @@ impl Section {
             Block::InterfaceStatistics(x) => { None }
             Block::IRIGTimestamp => { debug!("IRIG timestamp blocks are ignored"); None }
             Block::Arinc429 => { debug!("Arinc429 blocks are ignored"); None }
-        }
+        };
+        Ok((block_length, pkt))
     }
 
     fn enhanced_packet<'a>(&self, x: EnhancedPacket<'a>) -> Packet<'a> {
