@@ -81,3 +81,46 @@ fn peek_for_shb(buf: &[u8]) -> Result<Option<Endianness>> {
         Err(Error::DidntUnderstandMagicNumber(magic))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+
+    #[test]
+    fn test_dhcp_big() {
+        let file = File::open("test_data/dhcp_big_endian.pcapng").unwrap();
+        let mut pcap = Pcapng::new(file, |pkt| println!("{:?}", pkt)).unwrap();
+        pcap.next_block().unwrap(); // SHB
+        pcap.next_block().unwrap(); // IDB
+        pcap.next_block().unwrap(); // NRB
+        pcap.next_block().unwrap(); // EPB
+        pcap.next_block().unwrap(); // EPB
+        pcap.next_block().unwrap(); // EPB
+        // pcap.next_block().unwrap(); // EPB
+    }
+
+    #[test]
+    fn test_dhcp_little() {
+        let file = File::open("test_data/dhcp_little_endian.pcapng").unwrap();
+        let mut pcap = Pcapng::new(file, |pkt| println!("{:?}", pkt)).unwrap();
+        pcap.next_block().unwrap(); // SHB
+        pcap.next_block().unwrap(); // IDB
+        pcap.next_block().unwrap(); // NRB
+        pcap.next_block().unwrap(); // EPB
+        pcap.next_block().unwrap(); // EPB
+        pcap.next_block().unwrap(); // EPB
+        // pcap.next_block().unwrap(); // EPB
+    }
+
+    #[test]
+    fn test_many() {
+        let file = File::open("test_data/many_interfaces.pcapng").unwrap();
+        let mut pcap = Pcapng::new(file, |pkt| println!("{:?}", Packet{ data:&[], ..pkt })).unwrap();
+        pcap.next_block().unwrap(); // SHB
+        for _ in 0..11 { pcap.next_block().unwrap(); } // IDB
+        pcap.next_block().unwrap(); // NRB
+        for _ in 0..11 { pcap.next_block().unwrap(); } // ISB
+        for _ in 0..64 { pcap.next_block().unwrap(); } // EPB
+    }
+}
