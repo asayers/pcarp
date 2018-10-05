@@ -6,3 +6,8 @@ version = "0.1.0"
 [dependencies]
 byteorder = "1.0.0"
 log = "0.3.8"
+byteorder = "1.0"
+log = "0.3"
+num-derive = "0.2.3"
+num-traits = "0.2.6"
+failure = "0.1.2"
