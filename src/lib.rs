@@ -20,107 +20,43 @@ From https://www.tcpdump.org/pcap/pcap.html:
 
 Copyright (C) The Internet Society (2004). All Rights Reserved.
 */
+
 extern crate byteorder;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate failure;
+#[macro_use]
+extern crate num_derive;
+extern crate num_traits;
 
-pub mod blocks;
-pub mod section;
-pub mod types;
-pub mod link_type;
+mod error;
+pub mod internal;
+mod link_type;
+mod packet;
 
-use section::*;
-use std::io::{BufRead, BufReader, Read};
-use types::*;
+pub use error::*;
+pub use internal::InterfaceDescription;
+use internal::*;
+pub use link_type::*;
+pub use packet::*;
+use std::io::Read;
 
-pub struct Pcapng<R, F> {
-    rdr: BufReader<R>,
-    handle_packet: F,
-    section: Section,  // The current section
+pub struct Pcapng<R> {
+    block_reader: BlockReader<R>,
+    section: Section,
 }
 
-impl<R: Read, F: Fn(Packet)> Pcapng<R, F> {
-    pub fn new(rdr: R, handle_packet: F) -> Result<Pcapng<R, F>> {
-        let mut rdr = BufReader::with_capacity(BUF_CAPACITY, rdr);
-        let endianness = peek_for_shb(rdr.fill_buf().unwrap())?.unwrap();
+impl<R: Read> Pcapng<R> {
+    pub fn new(rdr: R) -> Result<Pcapng<R>> {
         Ok(Pcapng {
-            rdr: rdr,
-            handle_packet: handle_packet,
-            section: Section::new(endianness),
+            block_reader: BlockReader::new(rdr)?,
+            section: Section::new(),
         })
     }
 
-    pub fn next_block(&mut self) -> Result<()> {
-        let consumed_length = {
-            let buf = self.rdr.fill_buf().unwrap();
-            if let Some(endianness) = peek_for_shb(buf)? {
-                debug!("Found SHB; starting new section with endianness {:?}", endianness);
-                self.section = Section::new(endianness);
-            }
-            let (consumed_length, pkt) = self.section.handle_block(buf)?;
-            if let Some(pkt) = pkt { (self.handle_packet)(pkt); }
-            consumed_length
-        };
-        self.rdr.consume(consumed_length);
-        Ok(())
-    }
-}
-
-/// First we just need to check if it's an SHB, and set the endinanness if it is. This function
-/// doesn't consume anything from the buffer, it just peeks.
-fn peek_for_shb(buf: &[u8]) -> Result<Option<Endianness>> {
-    if buf.len() < 4 { return Err(Error::NotEnoughBytes); }
-    let block_type = &buf[..4];
-    if block_type != &[0x0A, 0x0D, 0x0D, 0x0A] { return Ok(None); }
-    if buf.len() < 12 { return Err(Error::NotEnoughBytes); }
-    let mut magic = [0;4]; magic.copy_from_slice(&buf[8..12]);
-    if magic == [0x1A, 0x2B, 0x3C, 0x4D] {
-        Ok(Some(Endianness::Big))
-    } else if magic == [0x4D, 0x3C, 0x2B, 0x1A] {
-        Ok(Some(Endianness::Little))
-    } else {
-        Err(Error::DidntUnderstandMagicNumber(magic))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs::File;
-
-    #[test]
-    fn test_dhcp_big() {
-        let file = File::open("test_data/dhcp_big_endian.pcapng").unwrap();
-        let mut pcap = Pcapng::new(file, |pkt| println!("{:?}", pkt)).unwrap();
-        pcap.next_block().unwrap(); // SHB
-        pcap.next_block().unwrap(); // IDB
-        pcap.next_block().unwrap(); // NRB
-        pcap.next_block().unwrap(); // EPB
-        pcap.next_block().unwrap(); // EPB
-        pcap.next_block().unwrap(); // EPB
-        // pcap.next_block().unwrap(); // EPB
-    }
-
-    #[test]
-    fn test_dhcp_little() {
-        let file = File::open("test_data/dhcp_little_endian.pcapng").unwrap();
-        let mut pcap = Pcapng::new(file, |pkt| println!("{:?}", pkt)).unwrap();
-        pcap.next_block().unwrap(); // SHB
-        pcap.next_block().unwrap(); // IDB
-        pcap.next_block().unwrap(); // NRB
-        pcap.next_block().unwrap(); // EPB
-        pcap.next_block().unwrap(); // EPB
-        pcap.next_block().unwrap(); // EPB
-        // pcap.next_block().unwrap(); // EPB
-    }
-
-    #[test]
-    fn test_many() {
-        let file = File::open("test_data/many_interfaces.pcapng").unwrap();
-        let mut pcap = Pcapng::new(file, |pkt| println!("{:?}", Packet{ data:&[], ..pkt })).unwrap();
-        pcap.next_block().unwrap(); // SHB
-        for _ in 0..11 { pcap.next_block().unwrap(); } // IDB
-        pcap.next_block().unwrap(); // NRB
-        for _ in 0..11 { pcap.next_block().unwrap(); } // ISB
-        for _ in 0..64 { pcap.next_block().unwrap(); } // EPB
+    pub fn next<'a>(&'a mut self) -> Result<Option<Packet<'a>>> {
+        let block = self.block_reader.next_block()?;
+        Ok(self.section.handle_block(block))
     }
 }
