@@ -25,17 +25,17 @@ extern crate failure;
 extern crate num_derive;
 extern crate num_traits;
 
+mod error;
 pub mod internal;
 mod link_type;
 mod packet;
-mod types;
 
+pub use error::*;
 pub use internal::InterfaceDescription;
 use internal::*;
 pub use link_type::*;
 pub use packet::*;
 use std::io::Read;
-pub use types::*;
 
 pub struct Pcapng<R> {
     block_reader: BlockReader<R>,

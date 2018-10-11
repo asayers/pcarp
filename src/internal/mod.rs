@@ -5,7 +5,8 @@ mod section;
 pub use self::block::*;
 pub use self::block_reader::*;
 pub use self::section::*;
-use types::*;
+use byteorder::ByteOrder;
+use error::*;
 
 pub const BUF_CAPACITY: usize = 10_000_000;
 
@@ -17,6 +18,10 @@ pub enum Endianness {
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct InterfaceId(pub u32);
+
+pub trait FromBytes<'a>: Sized {
+    fn parse<B: ByteOrder>(buf: &'a [u8]) -> Result<Self>;
+}
 
 pub fn require_bytes(buf: &[u8], len: usize) -> Result<()> {
     if buf.len() < len {

@@ -1,7 +1,7 @@
 use byteorder::{BigEndian, LittleEndian};
+use error::*;
 use internal::*;
 use std::io::{BufRead, BufReader, Read};
-use types::*;
 
 pub struct BlockReader<R> {
     rdr: BufReader<R>,
@@ -31,12 +31,12 @@ impl<R: Read> BlockReader<R> {
             debug!("Found SHB; setting endianness to {:?}", endianness);
             self.endianness = endianness;
         }
-        let (consumed_length, block) = match self.endianness {
-            Endianness::Big => Block::parse::<BigEndian>(buf),
-            Endianness::Little => Block::parse::<LittleEndian>(buf),
+        let frame = match self.endianness {
+            Endianness::Big => FramedBlock::parse::<BigEndian>(buf),
+            Endianness::Little => FramedBlock::parse::<LittleEndian>(buf),
         }?;
-        self.consumed = consumed_length;
-        Ok(block)
+        self.consumed = frame.len;
+        Ok(frame.block)
     }
 }
 
