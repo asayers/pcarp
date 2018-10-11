@@ -55,3 +55,59 @@ impl<R: Read> Pcapng<R> {
         Ok(self.section.handle_block(block))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+
+    #[test]
+    fn test_dhcp_big() {
+        let file = File::open("test_data/dhcp_big_endian.pcapng").unwrap();
+        let mut pcap = Pcapng::new(file).unwrap();
+        assert!(pcap.next().is_ok(), "failed to parse the SHB");
+        assert!(pcap.next().is_ok(), "failed to parse the IDB");
+        assert!(pcap.next().is_ok(), "failed to parse the NRB");
+        for i in 0..4 {
+            assert!(pcap.next().is_ok(), "failed to parse the #{} EPB", i);
+        }
+    }
+
+    #[test]
+    fn test_dhcp_little() {
+        let file = File::open("test_data/dhcp_little_endian.pcapng").unwrap();
+        let mut pcap = Pcapng::new(file).unwrap();
+        assert!(pcap.next().is_ok(), "failed to parse the SHB");
+        assert!(pcap.next().is_ok(), "failed to parse the IDB");
+        assert!(pcap.next().is_ok(), "failed to parse the NRB");
+        for i in 0..4 {
+            assert!(pcap.next().is_ok(), "failed to parse the #{} EPB", i);
+        }
+    }
+
+    #[test]
+    fn test_many() {
+        let file = File::open("test_data/many_interfaces.pcapng").unwrap();
+        let mut pcap = Pcapng::new(file).unwrap();
+        {
+            let r = pcap.next();
+            assert!(r.is_ok(), "failed to parse the SHB: {:?}", r);
+        }
+        for i in 0..11 {
+            let r = pcap.next();
+            assert!(r.is_ok(), "failed to parse the #{} IDB: {:?}", i, r);
+        }
+        {
+            let r = pcap.next();
+            assert!(r.is_ok(), "failed to parse the NRB: {:?}", r);
+        }
+        for i in 0..11 {
+            let r = pcap.next();
+            assert!(r.is_ok(), "failed to parse the #{} ISB: {:?}", i, r);
+        }
+        for i in 0..64 {
+            let r = pcap.next();
+            assert!(r.is_ok(), "failed to parse the #{} EPB: {:?}", i, r);
+        }
+    }
+}
