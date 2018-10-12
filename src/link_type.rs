@@ -1,3 +1,5 @@
+use num_traits::FromPrimitive;
+
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, PartialEq, FromPrimitive)]
 #[repr(u16)]
@@ -146,4 +148,19 @@ pub enum LinkType {
     IBM_SP = 145,
     /// Reserved for IBM SP switch and IBM Next Federation switch.
     IBM_SN = 146,
+}
+
+impl LinkType {
+    /// Decode LinkType from u16
+    ///
+    /// LINKTYPE_RAW is defined as 101 in the registry but for some reason libpcap uses DLT_RAW
+    /// defined as 14 on OpenBSD and as 12 for other platforms for the link type. So in order to
+    /// reliably decode link types we need to remap those numbers as LinkType::RAW here.
+    pub fn from_u16_with_hacks(i: u16) -> Option<Self> {
+        Self::from_u16(i).or_else(|| match i {
+            12 => Some(LinkType::RAW),
+            14 => Some(LinkType::RAW),
+            _ => None,
+        })
+    }
 }
