@@ -1,13 +1,16 @@
 pub mod blocks;
+pub mod section;
 pub mod types;
 pub mod link_type;
 
+use section::*;
 use std::io::{BufRead, BufReader, Read};
 use types::*;
 
 pub struct Pcapng<R, F> {
     rdr: BufReader<R>,
     handle_packet: F,
+    section: Section,  // The current section
 }
 
 impl<R: Read, F: Fn(Packet)> Pcapng<R, F> {
