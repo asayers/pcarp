@@ -1,3 +1,8 @@
+/*! Block definitions.
+
+All documentation in this module is taken from [https://www.tcpdump.org/pcap/pcap.html][].
+Copyright (C) The Internet Society (2004). All Rights Reserved.
+*/
 use byteorder::ByteOrder;
 use types::*;
 
