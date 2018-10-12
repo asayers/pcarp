@@ -1,15 +1,13 @@
+pub mod blocks;
+pub mod types;
 pub mod link_type;
 
-pub struct BlockReader<R, F> {
+use types::*;
+
+pub struct Pcapng<R, F> {
     rdr: BufReader<R>,
     endianness: Endianness,
     handle_packet: F,
-}
-
-pub enum Error {
-    DidntUnderstandMagicNumber([u8;4]),
-    UnknownBlockType(u32),
-    NotEnoughBytes,
 }
 
 impl<R: Read, F: Fn(&[u8])> BlockReader<R, F> {
