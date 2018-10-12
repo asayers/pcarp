@@ -2,10 +2,10 @@ extern crate clap;
 extern crate env_logger;
 #[macro_use]
 extern crate log;
-extern crate pcapng;
+extern crate pcarp;
 
 use clap::App;
-use pcapng::*;
+use pcarp::*;
 use std::fs::File;
 use std::thread;
 use std::time::*;

@@ -1,8 +1,8 @@
 extern crate pcap;
-extern crate pcapng;
+extern crate pcarp;
 
 use pcap::Capture;
-use pcapng::Pcapng;
+use pcarp::Pcapng;
 use std::fs::File;
 use std::path::Path;
 use std::time::*;
@@ -33,7 +33,7 @@ fn run_both(path: &Path) {
                     break;
                 }
                 Ok(None) => {}
-                Err(pcapng::Error::NotEnoughBytes(e, a)) => {
+                Err(pcarp::Error::NotEnoughBytes(e, a)) => {
                     println!("waiting {}/{}", a, e);
                 }
                 e => panic!("{:?}", e),
@@ -53,8 +53,8 @@ fn run_pcapng(path: &Path) {
                 n += 1;
             }
             Ok(None) => { /* the block was not a packet */ }
-            Err(pcapng::Error::NotEnoughBytes(_, _)) => break,
-            Err(pcapng::Error::ZeroBytes) => break,
+            Err(pcarp::Error::NotEnoughBytes(_, _)) => break,
+            Err(pcarp::Error::ZeroBytes) => break,
             Err(e) => {
                 panic!("{:?}", e);
             }
