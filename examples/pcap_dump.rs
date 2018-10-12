@@ -34,8 +34,11 @@ fn main() {
                 println!("{:?}", pkt.timestamp.unwrap());
             }
             Ok(None) => { /* the block was not a packet */ }
-            Err(Error::NotEnoughBytes(e, a)) => {
-                info!("Not enough bytes ({}/{}); sleeping and retrying.", a, e);
+            Err(Error::NotEnoughBytes { expected, actual }) => {
+                info!(
+                    "Not enough bytes ({}/{}); sleeping and retrying.",
+                    actual, expected
+                );
                 thread::sleep(Duration::from_millis(500));
             }
             Err(Error::ZeroBytes) => {

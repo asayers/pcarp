@@ -33,8 +33,8 @@ fn run_both(path: &Path) {
                     break;
                 }
                 Ok(None) => {}
-                Err(pcarp::Error::NotEnoughBytes(e, a)) => {
-                    println!("waiting {}/{}", a, e);
+                Err(pcarp::Error::NotEnoughBytes { expected, actual }) => {
+                    println!("waiting {}/{}", actual, expected);
                 }
                 e => panic!("{:?}", e),
             }
@@ -53,7 +53,7 @@ fn run_pcapng(path: &Path) {
                 n += 1;
             }
             Ok(None) => { /* the block was not a packet */ }
-            Err(pcarp::Error::NotEnoughBytes(_, _)) => break,
+            Err(pcarp::Error::NotEnoughBytes { .. }) => break,
             Err(pcarp::Error::ZeroBytes) => break,
             Err(e) => {
                 panic!("{:?}", e);
