@@ -1,3 +1,5 @@
+pub mod link_type;
+
 pub struct BlockReader<R, F> {
     rdr: BufReader<R>,
     endianness: Endianness,
