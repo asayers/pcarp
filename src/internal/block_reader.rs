@@ -1,17 +1,22 @@
+use buf_redux::policy::MinBuffered;
+use buf_redux::BufReader;
 use byteorder::{BigEndian, LittleEndian};
 use error::*;
 use internal::*;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, Read};
 
 pub struct BlockReader<R> {
-    rdr: BufReader<R>,
+    rdr: BufReader<R, MinBuffered>,
     endianness: Endianness,
     consumed: usize,
 }
 
+const DEFUALT_MIN_BUFFERED: usize = 8 * 1024; // 8KB
+
 impl<R: Read> BlockReader<R> {
     pub fn new(rdr: R) -> Result<BlockReader<R>> {
-        let mut rdr = BufReader::with_capacity(BUF_CAPACITY, rdr);
+        let mut rdr = BufReader::with_capacity(BUF_CAPACITY, rdr)
+            .set_policy(MinBuffered(DEFUALT_MIN_BUFFERED));
         let endianness = peek_for_shb(rdr.fill_buf()?)?.ok_or(Error::DidntStartWithSHB)?;
         Ok(BlockReader {
             rdr: rdr,
