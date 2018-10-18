@@ -56,7 +56,7 @@ impl<R: Read> Pcapng<R> {
         })
     }
 
-    pub fn next<'a>(&'a mut self) -> Result<Option<Packet<'a>>> {
+    pub fn next(&mut self) -> Result<Option<Packet>> {
         let block = self.block_reader.next_block()?;
         Ok(self.section.handle_block(block))
     }

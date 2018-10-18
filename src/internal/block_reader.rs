@@ -29,7 +29,7 @@ impl<R: Read> BlockReader<R> {
         })
     }
 
-    pub fn next_block<'a>(&'a mut self) -> Result<Block<'a>> {
+    pub fn next_block(&mut self) -> Result<Block> {
         self.rdr.consume(self.consumed);
         self.consumed = 0;
         let buf = self.rdr.fill_buf()?;
