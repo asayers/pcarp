@@ -15,8 +15,12 @@ const DEFUALT_MIN_BUFFERED: usize = 8 * 1024; // 8KB
 
 impl<R: Read> BlockReader<R> {
     pub fn new(rdr: R) -> Result<BlockReader<R>> {
-        let mut rdr = BufReader::with_capacity(BUF_CAPACITY, rdr)
-            .set_policy(MinBuffered(DEFUALT_MIN_BUFFERED));
+        Self::with_capacity(rdr, BUF_CAPACITY)
+    }
+
+    pub fn with_capacity(rdr: R, cap: usize) -> Result<BlockReader<R>> {
+        let mut rdr =
+            BufReader::with_capacity(cap, rdr).set_policy(MinBuffered(DEFUALT_MIN_BUFFERED));
         let endianness = peek_for_shb(rdr.fill_buf()?)?.ok_or(Error::DidntStartWithSHB)?;
         Ok(BlockReader {
             rdr: rdr,
