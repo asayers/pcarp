@@ -28,7 +28,7 @@ pub enum Block<'a> {
 }
 
 impl<'a> FromBytes<'a> for FramedBlock<'a> {
-    fn parse<B: ByteOrder>(buf: &'a [u8]) -> Result<FramedBlock<'a>> {
+    fn parse<B: ByteOrder + KnownByteOrder>(buf: &'a [u8]) -> Result<FramedBlock<'a>> {
         require_bytes(buf, 8)?;
         let block_type = B::read_u32(&buf[..4]);
         let block_length = B::read_u32(&buf[4..8]) as usize;
@@ -102,10 +102,10 @@ impl<'a> From<EnhancedPacket<'a>> for Block<'a> {
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct SectionHeader {
-    /// Byte-Order Magic: magic number, whose value is the hexadecimal number 0x1A2B3C4D. This
-    /// number can be used to distinguish sections that have been saved on little-endian machines
-    /// from the ones saved on big-endian machines.
-    pub byte_order_magic: u32,
+    /// Endianness: endianness determined by the magic number, whose value is the hexadecimal
+    /// number 0x1A2B3C4D. This number can be used to distinguish sections that have been saved on
+    /// little-endian machines from the ones saved on big-endian machines.
+    pub endianness: Endianness,
     /// Major Version: number of the current mayor version of the format. Current value is 1. This
     /// value should change if the format changes in such a way that tools that can read the new
     /// format could not read the old format (i.e., the code would have to check the version number
@@ -132,9 +132,9 @@ pub struct SectionHeader {
 }
 
 impl<'a> FromBytes<'a> for SectionHeader {
-    fn parse<B: ByteOrder>(buf: &'a [u8]) -> Result<SectionHeader> {
+    fn parse<B: ByteOrder + KnownByteOrder>(buf: &'a [u8]) -> Result<SectionHeader> {
         Ok(SectionHeader {
-            byte_order_magic: B::read_u32(&buf[0..4]),
+            endianness: B::endianness(),
             major_version: B::read_u16(&buf[4..6]),
             minor_version: B::read_u16(&buf[6..8]),
             section_length: B::read_i64(&buf[8..16]),
