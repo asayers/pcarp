@@ -20,13 +20,13 @@ impl<'a> Packet<'a> {
 
     pub fn new_enhanced(
         timestamp: u64,
+        timestamp_options: &'a TimestampOptions,
         interface: &'a InterfaceDescription,
         data: &'a [u8],
     ) -> Packet<'a> {
-        // TODO: Get resolution from InterfaceDescription by inspecting if_tsresol
-        let resolution = 1_000_000; // assume microsecond resolution (FIXME)
-        let secs = timestamp / resolution;
-        let nanos = (timestamp * 1_000_000_000 / resolution) as u32;
+        let units_per_sec = timestamp_options.units_per_sec as u64;
+        let secs = timestamp / units_per_sec;
+        let nanos = ((timestamp % units_per_sec) * 1_000_000_000 / units_per_sec) as u32;
         Packet {
             timestamp: Some(Duration::new(secs, nanos)),
             interface: Some(interface),
