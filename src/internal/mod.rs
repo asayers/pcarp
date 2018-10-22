@@ -36,7 +36,10 @@ pub trait FromBytes<'a>: Sized {
 
 pub fn require_bytes(buf: &[u8], len: usize) -> Result<()> {
     if buf.len() < len {
-        Err(Error::NotEnoughBytes(len, buf.len()))
+        Err(Error::NotEnoughBytes {
+            expected: len,
+            actual: buf.len(),
+        })
     } else {
         Ok(())
     }

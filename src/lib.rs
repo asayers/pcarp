@@ -21,6 +21,7 @@ From https://www.tcpdump.org/pcap/pcap.html:
 Copyright (C) The Internet Society (2004). All Rights Reserved.
 */
 
+extern crate buf_redux;
 extern crate byteorder;
 #[macro_use]
 extern crate log;
@@ -55,7 +56,7 @@ impl<R: Read> Pcapng<R> {
         })
     }
 
-    pub fn next<'a>(&'a mut self) -> Result<Option<Packet<'a>>> {
+    pub fn next(&mut self) -> Result<Option<Packet>> {
         let block = self.block_reader.next_block()?;
         Ok(self.section.handle_block(block))
     }

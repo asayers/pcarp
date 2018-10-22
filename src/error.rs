@@ -12,7 +12,7 @@ pub enum Error {
     #[fail(display = "Unknown link type {}", _0)]
     UnknownLinkType(u16),
     #[fail(display = "Not enough bytes (expected {}, saw {})", _0, _1)]
-    NotEnoughBytes(/* expected */ usize, /* actual */ usize),
+    NotEnoughBytes { expected: usize, actual: usize },
     #[fail(display = "Zero bytes")]
     ZeroBytes,
     #[fail(display = "Section didn't start with an SHB")]
