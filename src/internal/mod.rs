@@ -16,7 +16,7 @@ mod section;
 pub use self::block::*;
 pub use self::block_reader::*;
 pub use self::section::*;
-use byteorder::ByteOrder;
+use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use error::*;
 
 pub const BUF_CAPACITY: usize = 10_000_000;
@@ -27,11 +27,42 @@ pub enum Endianness {
     Little,
 }
 
+impl Endianness {
+    pub fn parse_from_magic(buf: &[u8]) -> Result<Self> {
+        let magic = &buf[0..4];
+        match magic {
+            [0x1A, 0x2B, 0x3C, 0x4D] => Ok(Endianness::Big),
+            [0x4D, 0x3C, 0x2B, 0x1A] => Ok(Endianness::Little),
+            _ => {
+                let mut unknown_magic = [0; 4];
+                unknown_magic.copy_from_slice(magic);
+                Err(Error::DidntUnderstandMagicNumber(unknown_magic))
+            }
+        }
+    }
+}
+
+pub trait KnownByteOrder {
+    fn endianness() -> Endianness;
+}
+
+impl KnownByteOrder for BigEndian {
+    fn endianness() -> Endianness {
+        Endianness::Big
+    }
+}
+
+impl KnownByteOrder for LittleEndian {
+    fn endianness() -> Endianness {
+        Endianness::Little
+    }
+}
+
 #[derive(Clone, PartialEq, Debug)]
 pub struct InterfaceId(pub u32);
 
 pub trait FromBytes<'a>: Sized {
-    fn parse<B: ByteOrder>(buf: &'a [u8]) -> Result<Self>;
+    fn parse<B: ByteOrder + KnownByteOrder>(buf: &'a [u8]) -> Result<Self>;
 }
 
 pub fn require_bytes(buf: &[u8], len: usize) -> Result<()> {

@@ -28,7 +28,7 @@ pub enum Block<'a> {
 }
 
 impl<'a> FromBytes<'a> for FramedBlock<'a> {
-    fn parse<B: ByteOrder>(buf: &'a [u8]) -> Result<FramedBlock<'a>> {
+    fn parse<B: ByteOrder + KnownByteOrder>(buf: &'a [u8]) -> Result<FramedBlock<'a>> {
         require_bytes(buf, 8)?;
         let block_type = B::read_u32(&buf[..4]);
         let block_length = B::read_u32(&buf[4..8]) as usize;
@@ -102,10 +102,10 @@ impl<'a> From<EnhancedPacket<'a>> for Block<'a> {
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct SectionHeader {
-    /// Byte-Order Magic: magic number, whose value is the hexadecimal number 0x1A2B3C4D. This
-    /// number can be used to distinguish sections that have been saved on little-endian machines
-    /// from the ones saved on big-endian machines.
-    pub byte_order_magic: u32,
+    /// Endianness: endianness determined by the magic number, whose value is the hexadecimal
+    /// number 0x1A2B3C4D. This number can be used to distinguish sections that have been saved on
+    /// little-endian machines from the ones saved on big-endian machines.
+    pub endianness: Endianness,
     /// Major Version: number of the current mayor version of the format. Current value is 1. This
     /// value should change if the format changes in such a way that tools that can read the new
     /// format could not read the old format (i.e., the code would have to check the version number
@@ -132,9 +132,9 @@ pub struct SectionHeader {
 }
 
 impl<'a> FromBytes<'a> for SectionHeader {
-    fn parse<B: ByteOrder>(buf: &'a [u8]) -> Result<SectionHeader> {
+    fn parse<B: ByteOrder + KnownByteOrder>(buf: &'a [u8]) -> Result<SectionHeader> {
         Ok(SectionHeader {
-            byte_order_magic: B::read_u32(&buf[0..4]),
+            endianness: B::endianness(),
             major_version: B::read_u16(&buf[4..6]),
             minor_version: B::read_u16(&buf[6..8]),
             section_length: B::read_i64(&buf[8..16]),
@@ -155,6 +155,66 @@ pub struct InterfaceDescription {
     /// Options: optionally, a list of options (formatted according to the rules defined in Section
     /// 2.5) can be present.
     pub options: Vec<u8>,
+}
+
+/// Packet options with regard to timestamps
+#[derive(Debug)]
+pub struct TimestampOptions {
+    /// The if_tsresol option identifies the resolution of timestamps. If the Most Significant Bit
+    /// is equal to zero, the remaining bits indicates the resolution of the timestamp as a negative
+    /// power of 10 (e.g. 6 means microsecond resolution, timestamps are the number of microseconds
+    /// since 1/1/1970). If the Most Significant Bit is equal to one, the remaining bits indicates
+    /// the resolution as as negative power of 2 (e.g. 10 means 1/1024 of second). If this option is
+    /// not present, a resolution of 10^-6 is assumed (i.e. timestamps have the same resolution of
+    /// the standard 'libpcap' timestamps).
+    pub units_per_sec: u32,
+}
+
+impl TimestampOptions {
+    fn new() -> Self {
+        TimestampOptions {
+            units_per_sec: 1_000_000,
+        }
+    }
+}
+
+impl InterfaceDescription {
+    pub fn timestamp_options<B: ByteOrder>(&self) -> TimestampOptions {
+        let mut opts = TimestampOptions::new();
+        let mut i = 0;
+        loop {
+            if self.options.len() < i + 4 {
+                // no further options
+                break;
+            }
+            let option_type = B::read_u16(&self.options[i..i + 2]);
+            i += 2;
+            let option_len = B::read_u16(&self.options[i..i + 2]) as usize;
+            i += 2;
+            match option_type {
+                0 => break, // end of options
+                9 => {
+                    // if_tsresol
+                    assert!(
+                        option_len == 1,
+                        "option_len for if_tsresol should be 1 but got {}",
+                        option_len
+                    );
+                    let v = self.options[i];
+                    let msb = v & 0b1000_0000 >> 7;
+                    let exp = (v & 0b0111_1111) as u32;
+                    if msb == 1 {
+                        opts.units_per_sec = 10_u32.pow(exp);
+                    } else if msb == 0 {
+                        opts.units_per_sec = 2_u32.pow(exp);
+                    }
+                }
+                _ => {} // skip other option types
+            }
+            i += option_len;
+        }
+        opts
+    }
 }
 
 impl<'a> FromBytes<'a> for InterfaceDescription {
@@ -207,7 +267,7 @@ impl<'a> FromBytes<'a> for EnhancedPacket<'a> {
         let timestamp_low = B::read_u32(&buf[8..12]);
         Ok(EnhancedPacket {
             interface_id: InterfaceId(B::read_u32(&buf[0..4])),
-            timestamp: ((timestamp_high as u64) << 4) + (timestamp_low as u64),
+            timestamp: ((timestamp_high as u64) << 32) + (timestamp_low as u64),
             captured_len: captured_len,
             packet_len: B::read_u32(&buf[16..20]),
             packet_data: &buf[20..20 + captured_len as usize],

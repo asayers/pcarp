@@ -58,13 +58,6 @@ fn peek_for_shb(buf: &[u8]) -> Result<Option<Endianness>> {
         return Ok(None);
     }
     require_bytes(buf, 12)?;
-    let mut magic = [0; 4];
-    magic.copy_from_slice(&buf[8..12]);
-    if magic == [0x1A, 0x2B, 0x3C, 0x4D] {
-        Ok(Some(Endianness::Big))
-    } else if magic == [0x4D, 0x3C, 0x2B, 0x1A] {
-        Ok(Some(Endianness::Little))
-    } else {
-        Err(Error::DidntUnderstandMagicNumber(magic))
-    }
+    let endianness = Endianness::parse_from_magic(&buf[8..12])?;
+    Ok(Some(endianness))
 }
