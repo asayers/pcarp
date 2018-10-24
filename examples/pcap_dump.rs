@@ -3,12 +3,15 @@ extern crate env_logger;
 #[macro_use]
 extern crate log;
 extern crate pcarp;
+extern crate xz2;
 
 use clap::App;
 use pcarp::*;
 use std::fs::File;
+use std::io::Read;
 use std::thread;
 use std::time::*;
+use xz2::read::XzDecoder;
 
 fn main() {
     let args = App::new("pcap_dump")
@@ -23,8 +26,15 @@ fn main() {
     let log_level = log_level_from_int(args.occurrences_of("verbosity"));
     env_logger::Builder::new().filter(None, log_level).init();
 
-    let file = File::open(args.value_of("pcap").unwrap()).unwrap();
-    let mut pcap = Pcapng::new(file).unwrap();
+    let filename = args.value_of("pcap").unwrap();
+    let file = File::open(filename).unwrap();
+    let reader: Box<Read>;
+    if filename.ends_with(".xz") {
+        reader = Box::new(XzDecoder::new(file));
+    } else {
+        reader = Box::new(file);
+    };
+    let mut pcap = Pcapng::new(reader).unwrap();
     let ts = Instant::now();
     let mut n = 0;
     loop {
