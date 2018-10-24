@@ -10,7 +10,7 @@ pub struct Packet<'a> {
 }
 
 impl<'a> Packet<'a> {
-    pub fn new_basic(data: &'a [u8]) -> Packet<'a> {
+    pub fn new_basic(data: &[u8]) -> Packet {
         Packet {
             timestamp: None,
             interface: None,
