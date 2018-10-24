@@ -14,7 +14,7 @@ impl<'a> Packet<'a> {
         Packet {
             timestamp: None,
             interface: None,
-            data: data,
+            data,
         }
     }
 
@@ -24,13 +24,13 @@ impl<'a> Packet<'a> {
         interface: &'a InterfaceDescription,
         data: &'a [u8],
     ) -> Packet<'a> {
-        let units_per_sec = timestamp_options.units_per_sec as u64;
+        let units_per_sec = u64::from(timestamp_options.units_per_sec);
         let secs = timestamp / units_per_sec;
         let nanos = ((timestamp % units_per_sec) * 1_000_000_000 / units_per_sec) as u32;
         Packet {
             timestamp: Some(Duration::new(secs, nanos)),
             interface: Some(interface),
-            data: data,
+            data,
         }
     }
 }
@@ -39,7 +39,7 @@ impl<'a> Display for Packet<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self.timestamp {
             Some(x) => {
-                let ts = x.as_secs() as f64 + (x.subsec_nanos() as f64 / 1_000_000_000.0);
+                let ts = x.as_secs() as f64 + (f64::from(x.subsec_nanos()) / 1_000_000_000.0);
                 write!(f, "[{:.4}] ", ts)?
             }
             None => write!(f, "[unknown] ")?,

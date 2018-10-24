@@ -118,3 +118,9 @@ impl Section {
         &self.timestamp_options[interface_id]
     }
 }
+
+impl Default for Section {
+    fn default() -> Self {
+        Self::new()
+    }
+}

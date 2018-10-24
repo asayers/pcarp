@@ -23,8 +23,8 @@ impl<R: Read> BlockReader<R> {
             BufReader::with_capacity(cap, rdr).set_policy(MinBuffered(DEFUALT_MIN_BUFFERED));
         let endianness = peek_for_shb(rdr.fill_buf()?)?.ok_or(Error::DidntStartWithSHB)?;
         Ok(BlockReader {
-            rdr: rdr,
-            endianness: endianness,
+            rdr,
+            endianness,
             consumed: 0,
         })
     }
@@ -33,7 +33,7 @@ impl<R: Read> BlockReader<R> {
         self.rdr.consume(self.consumed);
         self.consumed = 0;
         let buf = self.rdr.fill_buf()?;
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return Err(Error::ZeroBytes);
         }
         if let Some(endianness) = peek_for_shb(buf)? {
@@ -54,7 +54,7 @@ impl<R: Read> BlockReader<R> {
 fn peek_for_shb(buf: &[u8]) -> Result<Option<Endianness>> {
     require_bytes(buf, 4)?;
     let block_type = &buf[..4];
-    if block_type != &[0x0A, 0x0D, 0x0D, 0x0A] {
+    if block_type != [0x0A, 0x0D, 0x0D, 0x0A] {
         return Ok(None);
     }
     require_bytes(buf, 12)?;

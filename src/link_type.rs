@@ -6,33 +6,33 @@ use num_traits::FromPrimitive;
 pub enum LinkType {
     /// No link layer information. A packet saved with this link layer contains a raw L3 packet
     /// preceded by a 32-bit host-byte-order AF_ value indicating the specific L3 type.
-    NULL = 000,
+    NULL = 0,
     /// D/I/X and 802.3 Ethernet
-    ETHERNET = 001,
+    ETHERNET = 1,
     /// Experimental Ethernet (3Mb)
-    EXP_ETHERNET = 002,
+    EXP_ETHERNET = 2,
     /// Amateur Radio AX.25
-    AX24 = 003,
+    AX24 = 3,
     /// Proteon ProNET Token Ring
-    PRONET = 004,
+    PRONET = 4,
     /// Chaos
-    CHAOS = 005,
+    CHAOS = 5,
     /// IEEE 802 Networks
-    TOKEN_RING = 006,
+    TOKEN_RING = 6,
     /// ARCNET, with BSD-style header
-    ARCNET = 007,
+    ARCNET = 7,
     /// Serial Line IP
-    SLIP = 008,
+    SLIP = 8,
     /// Point-to-point Protocol
-    PPP = 009,
+    PPP = 9,
     /// FDDI
-    FDDI = 010,
+    FDDI = 10,
     /// PPP in HDLC-like framing
-    PPP_HDLC = 050,
+    PPP_HDLC = 50,
     /// NetBSD PPP-over-Ethernet
-    PPP_ETHER = 051,
+    PPP_ETHER = 51,
     /// Symantec Enterprise Firewall
-    SYMANTEC_FIREWALL = 099,
+    SYMANTEC_FIREWALL = 99,
     /// LLC/SNAP-encapsulated ATM
     ATM_RFC1483 = 100,
     /// Raw IP

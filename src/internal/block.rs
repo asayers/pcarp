@@ -44,15 +44,15 @@ impl<'a> FromBytes<'a> for FramedBlock<'a> {
             "Block's start and end lengths don't match"
         );
         let block = match block_type {
-            0x0A0D0D0A => Block::from(SectionHeader::parse::<B>(body)?),
-            0x00000001 => Block::from(InterfaceDescription::parse::<B>(body)?),
-            0x00000002 => Block::from(ObsoletePacket::parse::<B>(body)?),
-            0x00000003 => Block::from(SimplePacket::parse::<B>(body)?),
-            0x00000004 => Block::from(NameResolution::parse::<B>(body)?),
-            0x00000005 => Block::from(InterfaceStatistics::parse::<B>(body)?),
-            0x00000006 => Block::from(EnhancedPacket::parse::<B>(body)?),
-            0x00000007 => Block::IRIGTimestamp,
-            0x00000008 => Block::Arinc429,
+            0x0A0D_0D0A => Block::from(SectionHeader::parse::<B>(body)?),
+            0x0000_0001 => Block::from(InterfaceDescription::parse::<B>(body)?),
+            0x0000_0002 => Block::from(ObsoletePacket::parse::<B>(body)?),
+            0x0000_0003 => Block::from(SimplePacket::parse::<B>(body)?),
+            0x0000_0004 => Block::from(NameResolution::parse::<B>(body)?),
+            0x0000_0005 => Block::from(InterfaceStatistics::parse::<B>(body)?),
+            0x0000_0006 => Block::from(EnhancedPacket::parse::<B>(body)?),
+            0x0000_0007 => Block::IRIGTimestamp,
+            0x0000_0008 => Block::Arinc429,
             n => {
                 return Err(Error::UnknownBlockType(n));
             }
@@ -202,7 +202,7 @@ impl InterfaceDescription {
                     );
                     let v = self.options[i];
                     let msb = v & 0b1000_0000 >> 7;
-                    let exp = (v & 0b0111_1111) as u32;
+                    let exp = u32::from(v & 0b0111_1111);
                     if msb == 1 {
                         opts.units_per_sec = 10_u32.pow(exp);
                     } else if msb == 0 {
@@ -221,7 +221,8 @@ impl<'a> FromBytes<'a> for InterfaceDescription {
     fn parse<B: ByteOrder>(buf: &'a [u8]) -> Result<InterfaceDescription> {
         let lt = B::read_u16(&buf[0..2]);
         Ok(InterfaceDescription {
-            link_type: LinkType::from_u16_with_hacks(lt).ok_or(Error::UnknownLinkType(lt))?,
+            link_type: LinkType::from_u16_with_hacks(lt)
+                .ok_or_else(|| Error::UnknownLinkType(lt))?,
             snap_len: B::read_u32(&buf[4..8]),
             options: Vec::from(&buf[8..]),
         })
@@ -267,8 +268,8 @@ impl<'a> FromBytes<'a> for EnhancedPacket<'a> {
         let timestamp_low = B::read_u32(&buf[8..12]);
         Ok(EnhancedPacket {
             interface_id: InterfaceId(B::read_u32(&buf[0..4])),
-            timestamp: ((timestamp_high as u64) << 32) + (timestamp_low as u64),
-            captured_len: captured_len,
+            timestamp: (u64::from(timestamp_high) << 32) + u64::from(timestamp_low),
+            captured_len,
             packet_len: B::read_u32(&buf[16..20]),
             packet_data: &buf[20..20 + captured_len as usize],
             options: &buf[20 + captured_len as usize..],
@@ -295,7 +296,7 @@ impl<'a> FromBytes<'a> for SimplePacket<'a> {
     fn parse<B: ByteOrder>(buf: &'a [u8]) -> Result<SimplePacket<'a>> {
         let packet_len = B::read_u32(&buf[0..4]);
         Ok(SimplePacket {
-            packet_len: packet_len,
+            packet_len,
             packet_data: &buf[4..4 + packet_len as usize],
             options: &buf[4 + packet_len as usize..],
         })
@@ -341,10 +342,10 @@ impl<'a> FromBytes<'a> for ObsoletePacket<'a> {
         let timestamp_high = B::read_u32(&buf[4..8]);
         let timestamp_low = B::read_u32(&buf[8..12]);
         Ok(ObsoletePacket {
-            interface_id: InterfaceId(B::read_u16(&buf[0..2]) as u32),
+            interface_id: InterfaceId(u32::from(B::read_u16(&buf[0..2]))),
             drops_count: B::read_u16(&buf[2..4]),
-            timestamp: ((timestamp_high as u64) << 4) + (timestamp_low as u64),
-            captured_len: captured_len,
+            timestamp: (u64::from(timestamp_high) << 4) + u64::from(timestamp_low),
+            captured_len,
             packet_len: B::read_u32(&buf[16..20]),
             packet_data: &buf[20..20 + captured_len as usize],
             options: &buf[20 + captured_len as usize..],

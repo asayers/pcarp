@@ -61,7 +61,7 @@ fn main() {
         }
         if n % 1000 == 0 {
             let nanos = ts.elapsed().subsec_nanos();
-            let bps = n as f64 * 1_000_000_000.0 / nanos as f64;
+            let bps = f64::from(n) * 1_000_000_000.0 / f64::from(nanos);
             info!("Read {} blocks at {} pps", n, bps);
         }
     }

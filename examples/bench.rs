@@ -61,7 +61,7 @@ fn run_pcapng(path: &Path) {
         }
     }
     let nanos = ts.elapsed().subsec_nanos();
-    let secs = nanos as f64 / 1_000_000_000.0;
+    let secs = f64::from(nanos) / 1_000_000_000.0;
     let bps = n as f64 / secs;
     println!("Read {} packets at {} pps", n, bps);
 }
@@ -82,7 +82,7 @@ fn run_libpcap(path: &Path) {
         }
     }
     let nanos = ts.elapsed().subsec_nanos();
-    let secs = nanos as f64 / 1_000_000_000.0;
+    let secs = f64::from(nanos) / 1_000_000_000.0;
     let bps = n as f64 / secs;
     println!("Read {} packets at {} pps", n, bps);
 }
