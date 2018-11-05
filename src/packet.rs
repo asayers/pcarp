@@ -38,15 +38,12 @@ impl<'a> Packet<'a> {
 impl<'a> Display for Packet<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self.timestamp {
-            Some(x) => {
-                let ts = x.as_secs() as f64 + (f64::from(x.subsec_nanos()) / 1_000_000_000.0);
-                write!(f, "[{:.4}] ", ts)?
-            }
-            None => write!(f, "[unknown] ")?,
+            Some(x) => write!(f, "{}.{:0>9}\t", x.as_secs(), x.subsec_nanos())?,
+            None => write!(f, "unknown\t")?,
         }
         match self.interface {
-            Some(x) => write!(f, "{:?} ", x.link_type)?,
-            None => write!(f, "unknown ")?,
+            Some(x) => write!(f, "{:?}\t", x.link_type)?,
+            None => write!(f, "unknown\t")?,
         }
         write!(
             f,

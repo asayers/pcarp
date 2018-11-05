@@ -2,6 +2,7 @@ extern crate clap;
 extern crate env_logger;
 #[macro_use]
 extern crate log;
+extern crate flate2;
 extern crate pcarp;
 extern crate xz2;
 
@@ -9,9 +10,9 @@ use clap::App;
 use pcarp::*;
 use std::fs::File;
 use std::io::Read;
+use std::path::PathBuf;
 use std::thread;
 use std::time::*;
-use xz2::read::XzDecoder;
 
 fn main() {
     let args = App::new("pcap_dump")
@@ -19,33 +20,39 @@ fn main() {
         .about("Dumps the packets from a pcapng file")
         .args_from_usage(
             "<pcap>  'The pcapng file to read from'
-             [verbosity]... -v 'Sets the level of verbosity'",
+             --verbose -v 'Enable verbose output'",
         ).get_matches();
 
     // Initialise the logger
-    let log_level = log_level_from_int(args.occurrences_of("verbosity"));
+    let log_level = if args.is_present("verbose") {
+        log::LevelFilter::Info
+    } else {
+        log::LevelFilter::Warn
+    };
     env_logger::Builder::new().filter(None, log_level).init();
 
-    let filename = args.value_of("pcap").unwrap();
-    let file = File::open(filename).unwrap();
-    let reader: Box<Read>;
-    if filename.ends_with(".xz") {
-        reader = Box::new(XzDecoder::new(file));
-    } else {
-        reader = Box::new(file);
+    let path = PathBuf::from(args.value_of("pcap").unwrap());
+    let file = File::open(&path).unwrap();
+    let reader: Box<Read> = match path.extension().and_then(|x| x.to_str()) {
+        Some("pcapng") => Box::new(file),
+        Some("gz") => Box::new(flate2::read::GzDecoder::new(file)),
+        Some("xz") => Box::new(xz2::read::XzDecoder::new(file)),
+        None => panic!("not a file"),
+        Some(x) => panic!("Didn't recognise file extension {}; skipping", x),
     };
     let mut pcap = Pcapng::new(reader).unwrap();
+
     let ts = Instant::now();
     let mut n = 0;
     loop {
         match pcap.next() {
             Ok(Some(pkt)) => {
                 n += 1;
-                println!("{:?}", pkt.timestamp.unwrap());
+                println!("{}", pkt);
             }
             Ok(None) => { /* the block was not a packet */ }
             Err(Error::NotEnoughBytes { expected, actual }) => {
-                info!(
+                warn!(
                     "Not enough bytes ({}/{}); sleeping and retrying.",
                     actual, expected
                 );
@@ -64,16 +71,5 @@ fn main() {
             let bps = f64::from(n) * 1_000_000_000.0 / f64::from(nanos);
             info!("Read {} blocks at {} pps", n, bps);
         }
-    }
-}
-
-pub fn log_level_from_int(n: u64) -> log::LevelFilter {
-    match n {
-        0 => log::LevelFilter::Off,
-        1 => log::LevelFilter::Error,
-        2 => log::LevelFilter::Warn,
-        3 => log::LevelFilter::Info,
-        4 => log::LevelFilter::Debug,
-        _ => log::LevelFilter::Trace,
     }
 }
