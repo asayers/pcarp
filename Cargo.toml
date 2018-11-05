@@ -15,4 +15,5 @@ num-traits = "0.2"
 clap = "2.32"
 env_logger = "0.5"
 pcap = "0.7"
+sha1 = { version = "0.6", features = ["std"] }
 xz2 = "0.1"
