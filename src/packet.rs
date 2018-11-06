@@ -1,5 +1,4 @@
 use internal::*;
-use std::fmt::{self, Display, Formatter};
 use std::time::Duration;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -32,24 +31,5 @@ impl<'a> Packet<'a> {
             interface: Some(interface),
             data,
         }
-    }
-}
-
-impl<'a> Display for Packet<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self.timestamp {
-            Some(x) => write!(f, "{}.{:0>9}\t", x.as_secs(), x.subsec_nanos())?,
-            None => write!(f, "unknown\t")?,
-        }
-        match self.interface {
-            Some(x) => write!(f, "{:?}\t", x.link_type)?,
-            None => write!(f, "unknown\t")?,
-        }
-        write!(
-            f,
-            "{}",
-            String::from_utf8_lossy(self.data)
-                .replace(|x: char| !x.is_ascii() || x.is_control(), ".")
-        )
     }
 }

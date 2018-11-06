@@ -3,6 +3,7 @@ extern crate env_logger;
 #[macro_use]
 extern crate log;
 extern crate flate2;
+extern crate humantime;
 extern crate pcarp;
 extern crate xz2;
 
@@ -33,12 +34,14 @@ fn main() {
 
     let path = PathBuf::from(args.value_of("pcap").unwrap());
     let file = File::open(&path).unwrap();
-    let reader: Box<Read> = match path.extension().and_then(|x| x.to_str()) {
-        Some("pcapng") => Box::new(file),
-        Some("gz") => Box::new(flate2::read::GzDecoder::new(file)),
-        Some("xz") => Box::new(xz2::read::XzDecoder::new(file)),
-        None => panic!("not a file"),
-        Some(x) => panic!("Didn't recognise file extension {}; skipping", x),
+    let reader: Box<Read> = match path.extension().unwrap().to_str().unwrap() {
+        "pcapng" => Box::new(file),
+        "gz" => Box::new(flate2::read::GzDecoder::new(file)),
+        "xz" => Box::new(xz2::read::XzDecoder::new(file)),
+        x => {
+            warn!("Didn't recognise file extension {}; assuming plain pcap", x);
+            Box::new(file)
+        }
     };
     let mut pcap = Pcapng::new(reader).unwrap();
 
@@ -48,7 +51,13 @@ fn main() {
         match pcap.next() {
             Ok(Some(pkt)) => {
                 n += 1;
-                println!("{}", pkt);
+                let ts = SystemTime::UNIX_EPOCH + pkt.timestamp.unwrap_or(Duration::from_secs(0));
+                println!(
+                    "[{}] {:>5}  {}",
+                    humantime::format_rfc3339_nanos(ts),
+                    pkt.data.len(),
+                    sanitize(pkt.data)
+                );
             }
             Ok(None) => { /* the block was not a packet */ }
             Err(Error::NotEnoughBytes { expected, actual }) => {
@@ -72,4 +81,8 @@ fn main() {
             info!("Read {} blocks at {} pps", n, bps);
         }
     }
+}
+
+fn sanitize(data: &[u8]) -> String {
+    String::from_utf8_lossy(data).replace(|x: char| !x.is_ascii() || x.is_control(), ".")
 }
