@@ -10,9 +10,9 @@ corresponding ".expected" file.
 
 # License
 
-The capture files in this directory were scraped from [1], where they seem to
-be distributed under the terms of the GNU GPL (see [2]).  I'm not exactly sure
-how the GPL applies to pcap files...
+The capture files in this directory were scraped from the [Wireshark wiki][1],
+where they seem to be distributed under the terms of the GNU GPL (see
+[here][2]).  I'm not exactly sure how the GPL applies to pcap files...
 
 [1]: https://wiki.wireshark.org/SampleCaptures
 [2]: https://wiki.wireshark.org/License

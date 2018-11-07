@@ -1,24 +1,14 @@
 /*!
+pcarp is pure-Rust library for reading pcap-ng files.
 
-From https://www.tcpdump.org/pcap/pcap.html:
+* _Correct_: Produces the same results as `tshark` for all the pcapng files I
+  could scrape from the [Wireshark wiki][1].
+* _Fast_: About 4x faster than `libpcap`.
+* _Flexible_: Takes anything which implements `Read` as input.  Are your pcaps
+  compressed?  No problem, just wrap them in a [`GzDecoder`][2].
 
-> The problem of exchanging packet traces becomes more and more critical every day; unfortunately, no
-> standard solutions exist for this task right now. One of the most accepted packet interchange
-> formats is the one defined by libpcap, which is rather old and is lacking in functionality for more
-> modern applications particularly from the extensibility point of view.
->
-> This document proposes a new format for recording packet traces. The following goals are being
-> pursued:
->
-> * Extensibility: It should be possible to add new standard capabilities to the file format over
->   time, and third parties should be able to enrich the information embedded in the file with
->   proprietary extensions, with tools unaware of newer extensions being able to ignore them.
-> * Portability: A capture trace must contain all the information needed to read data independently
->   from network, hardware and operating system of the machine that made the capture.
-> * Merge/Append data: It should be possible to add data at the end of a given file, and the
->   resulting file must still be readable.
-
-Copyright (C) The Internet Society (2004). All Rights Reserved.
+[1]: https://wiki.wireshark.org/SampleCaptures
+[2]: https://docs.rs/flate2/1/flate2/read/struct.GzDecoder.html
 */
 
 extern crate buf_redux;

@@ -2,6 +2,7 @@
 name = "pcarp"
 version = "0.1.0"
 authors = ["Alex Sayers <alex@asayers.com>", "Mitsutoshi Aoe <maoe@foldr.in>"]
+description = "A pure-Rust library for reading pcap-ng files"
 
 [dependencies]
 buf_redux = "0.7"
