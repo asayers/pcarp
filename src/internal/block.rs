@@ -192,7 +192,11 @@ impl InterfaceDescription {
             let option_len = B::read_u16(&self.options[i..i + 2]) as usize;
             i += 2;
             match option_type {
-                0 => break, // end of options
+                0 => {
+                    // end of options
+                    assert!(i == self.options.len());
+                    break;
+                }
                 9 => {
                     // if_tsresol
                     assert!(
