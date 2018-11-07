@@ -14,3 +14,12 @@ A pure-Rust library for reading pcap-ng files.
 [1]: https://wiki.wireshark.org/SampleCaptures
 [2]: https://docs.rs/flate2/*/flate2/read/struct.GzDecoder.html
 [3]: integration_tests/
+
+# License
+
+The software itself is in the public domain.
+
+Some of the documentation is copied from the pcap spec, so the copyright is
+owned by the IETF;  these places are cleary marked.  The pcaps used by the
+integration tests are distributed by the Wireshark Foundation under the terms
+of the GNU GPL.
