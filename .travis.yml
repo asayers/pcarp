@@ -12,3 +12,5 @@ addons:
   apt:
     packages:
       - libpcap-dev
+script:
+  - integration_tests/run.sh
