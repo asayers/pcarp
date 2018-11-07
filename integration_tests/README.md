@@ -1,9 +1,23 @@
+This directory contains "golden" tests.  We have a bunch of pcapng files, and
+for each we have a plain-text dump of its contents.  These text files have one
+line per packet, formatted like so:
+
+    <timestamp> <data length> <data SHA1>
+
+The `test_dump` example program outputs the same format.  `run.sh` is a script
+which generates ".actual" files using `test_dump` and compares them to their
+corresponding ".expected" file.
+
+# License
+
 The capture files in this directory were scraped from [1], where they seem to
 be distributed under the terms of the GNU GPL (see [2]).  I'm not exactly sure
 how the GPL applies to pcap files...
 
 [1]: https://wiki.wireshark.org/SampleCaptures
 [2]: https://wiki.wireshark.org/License
+
+# Generating expected results
 
 I generated the ".expected" files using the following ugly script:
 
