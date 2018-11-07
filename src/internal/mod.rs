@@ -75,3 +75,23 @@ pub fn require_bytes(buf: &[u8], len: usize) -> Result<()> {
         Ok(())
     }
 }
+
+#[derive(Debug)]
+pub struct TimestampOptions {
+    /// The if_tsresol option identifies the resolution of timestamps. If the Most Significant Bit
+    /// is equal to zero, the remaining bits indicates the resolution of the timestamp as a negative
+    /// power of 10 (e.g. 6 means microsecond resolution, timestamps are the number of microseconds
+    /// since 1/1/1970). If the Most Significant Bit is equal to one, the remaining bits indicates
+    /// the resolution as as negative power of 2 (e.g. 10 means 1/1024 of second). If this option is
+    /// not present, a resolution of 10^-6 is assumed (i.e. timestamps have the same resolution of
+    /// the standard 'libpcap' timestamps).
+    pub units_per_sec: u32,
+}
+
+impl TimestampOptions {
+    fn new() -> Self {
+        TimestampOptions {
+            units_per_sec: 1_000_000,
+        }
+    }
+}

@@ -1,7 +1,8 @@
 /*! Block definitions.
 
-All documentation in this module is taken from [https://www.tcpdump.org/pcap/pcap.html][].
-Copyright (C) The Internet Society (2004). All Rights Reserved.
+All documentation in this module is taken from [https://github.com/pcapng/pcapng][] and is
+copyright (c) 2018 IETF Trust and the persons identified as the authors of that document. All
+rights reserved. Please see the linked document for the full copyright notice.
 */
 use byteorder::ByteOrder;
 use error::*;
@@ -100,34 +101,45 @@ impl<'a> From<EnhancedPacket<'a>> for Block<'a> {
     }
 }
 
+/// Defines the most important characteristics of the capture file.
+///
+/// The Section Header Block (SHB) is mandatory. It identifies the beginning of a section of the
+/// capture capture file. The Section Header Block does not contain data but it rather identifies a
+/// list of blocks (interfaces, packets) that are logically correlated.
+///
+/// This documentation is copyright (c) 2018 IETF Trust and the persons identified as the
+/// authors of [this document][1]. All rights reserved. Please see the linked document for the full
+/// copyright notice.
+///
+/// [1]: https://github.com/pcapng/pcapng
 #[derive(Clone, PartialEq, Debug)]
 pub struct SectionHeader {
-    /// Endianness: endianness determined by the magic number, whose value is the hexadecimal
-    /// number 0x1A2B3C4D. This number can be used to distinguish sections that have been saved on
-    /// little-endian machines from the ones saved on big-endian machines.
+    /// Used to distinguish sections that have been saved on little-endian machines from the ones
+    /// saved on big-endian machines.
     pub endianness: Endianness,
-    /// Major Version: number of the current mayor version of the format. Current value is 1. This
-    /// value should change if the format changes in such a way that tools that can read the new
-    /// format could not read the old format (i.e., the code would have to check the version number
-    /// to be able to read both formats).
+    /// Number of the current mayor version of the format. Current value is 1. This value should
+    /// change if the format changes in such a way that code that reads the new format could not
+    /// read the old format (i.e., code to read both formats would have to check the version number
+    /// and use different code paths for the two formats) and code that reads the old format could
+    /// not read the new format.
     pub major_version: u16,
-    /// Minor Version: number of the current minor version of the format. Current value is 0. This
-    /// value should change if the format changes in such a way that tools that can read the new
-    /// format can still automatically read the new format but code that can only read the old
-    /// format cannot read the new format.
+    /// Number of the current minor version of the format. Current value is 0. This value should
+    /// change if the format changes in such a way that code that reads the new format could read
+    /// the old format without checking the version number but code that reads the old format could
+    /// not read all files in the new format.
     pub minor_version: u16,
-    /// Section Length: 64-bit value specifying the length in bytes of the following section,
-    /// excluding the Section Header Block itself. This field can be used to skip the section, for
-    /// faster navigation inside large files. Section Length equal -1 (0xFFFFFFFFFFFFFFFF) means
-    /// that the size of the section is not specified, and the only way to skip the section is to
-    /// parse the blocks that it contains. Please note that if this field is valid (i.e. not -1),
-    /// its value is always aligned to 32 bits, as all the blocks are aligned to 32-bit boundaries.
-    /// Also, special care should be taken in accessing this field: since the alignment of all the
-    /// blocks in the file is 32-bit, this field is not guaranteed to be aligned to a 64-bit
-    /// boundary. This could be a problem on 64-bit workstations.
+    /// A signed 64-bit value specifying the length in octets of the following section, excluding
+    /// the Section Header Block itself. This field can be used to skip the section, for faster
+    /// navigation inside large files. Section Length equal -1 (0xFFFFFFFFFFFFFFFF) means that the
+    /// size of the section is not specified, and the only way to skip the section is to parse the
+    /// blocks that it contains. Please note that if this field is valid (i.e. not negative), its
+    /// value is always aligned to 32 bits, as all the blocks are aligned to and padded to 32-bit
+    /// boundaries. Also, special care should be taken in accessing this field: since the alignment
+    /// of all the blocks in the file is 32-bits, this field is not guaranteed to be aligned to a
+    /// 64-bit boundary. This could be a problem on 64-bit processors.
     pub section_length: i64,
-    /// Options: optionally, a list of options (formatted according to the rules defined in Section
-    /// 2.5) can be present.
+    /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
+    /// be present.
     pub options: Vec<u8>,
 }
 
@@ -143,39 +155,46 @@ impl<'a> FromBytes<'a> for SectionHeader {
     }
 }
 
+/// Defines the most important characteristics of the interface(s) used for capturing traffic. This
+/// block is required in certain cases, as described later.
+///
+/// An Interface Description Block (IDB) is the container for information describing an interface
+/// on which packet data is captured.
+///
+/// Tools that write / read the capture file associate an incrementing 32-bit number (starting from
+/// '0') to each Interface Definition Block, called the Interface ID for the interface in question.
+/// This number is unique within each Section and identifies the interface to which the IDB refers;
+/// it is only unique inside the current section, so, two Sections can have different interfaces
+/// identified by the same Interface ID values. This unique identifier is referenced by other
+/// blocks, such as Enhanced Packet Blocks and Interface Statistic Blocks, to indicate the
+/// interface to which the block refers (such the interface that was used to capture the packet
+/// that an Enhanced Packet Block contains or to which the statistics in an Interface Statistic
+/// Block refer).
+///
+/// There must be an Interface Description Block for each interface to which another block refers.
+/// Blocks such as an Enhanced Packet Block or an Interface Statistics Block contain an Interface
+/// ID value referring to a particular interface, and a Simple Packet Block implicitly refers to an
+/// interface with an Interface ID of 0. If the file does not contain any blocks that use an
+/// Interface ID, then the file does not need to have any IDBs.
+///
+/// An Interface Description Block is valid only inside the section to which it belongs.
+///
+/// This documentation is copyright (c) 2018 IETF Trust and the persons identified as the
+/// authors of [this document][1]. All rights reserved. Please see the linked document for the full
+/// copyright notice.
+///
+/// [1]: https://github.com/pcapng/pcapng
 #[derive(Clone, PartialEq, Debug)]
 pub struct InterfaceDescription {
-    /// LinkType: a value that defines the link layer type of this interface. The list of
-    /// Standardized Link Layer Type codes is available in Appendix C.
+    /// A value that defines the link layer type of this interface. The list of Standardized Link
+    /// Layer Type codes is available in the tcpdump.org link-layer header types registry.
     pub link_type: LinkType,
-    /// SnapLen: maximum number of bytes dumped from each packet. The portion of each packet that
-    /// exceeds this value will not be stored in the file. (TODO: Is there a need to signal "no
-    /// limit"?)
+    /// Maximum number of octets captured from each packet. The portion of each packet that exceeds
+    /// this value will not be stored in the file. A value of zero indicates no limit.
     pub snap_len: u32,
-    /// Options: optionally, a list of options (formatted according to the rules defined in Section
-    /// 2.5) can be present.
+    /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
+    /// be present.
     pub options: Vec<u8>,
-}
-
-/// Packet options with regard to timestamps
-#[derive(Debug)]
-pub struct TimestampOptions {
-    /// The if_tsresol option identifies the resolution of timestamps. If the Most Significant Bit
-    /// is equal to zero, the remaining bits indicates the resolution of the timestamp as a negative
-    /// power of 10 (e.g. 6 means microsecond resolution, timestamps are the number of microseconds
-    /// since 1/1/1970). If the Most Significant Bit is equal to one, the remaining bits indicates
-    /// the resolution as as negative power of 2 (e.g. 10 means 1/1024 of second). If this option is
-    /// not present, a resolution of 10^-6 is assumed (i.e. timestamps have the same resolution of
-    /// the standard 'libpcap' timestamps).
-    pub units_per_sec: u32,
-}
-
-impl TimestampOptions {
-    fn new() -> Self {
-        TimestampOptions {
-            units_per_sec: 1_000_000,
-        }
-    }
 }
 
 impl InterfaceDescription {
@@ -233,35 +252,61 @@ impl<'a> FromBytes<'a> for InterfaceDescription {
     }
 }
 
+/// Contains a single captured packet, or a portion of it. It represents an evolution of the
+/// original, now obsolete, Packet Block. If this appears in a file, an Interface Description Block
+/// is also required, before this block.
+///
+/// An Enhanced Packet Block (EPB) is the standard container for storing the packets coming from
+/// the network. The Enhanced Packet Block is optional because packets can be stored either by
+/// means of this block or the Simple Packet Block, which can be used to speed up capture file
+/// generation; or a file may have no packets in it.
+///
+/// The Enhanced Packet Block is an improvement over the original, now obsolete, Packet Block:
+///
+/// * it stores the Interface Identifier as a 32-bit integer value. This is a requirement when a
+///   capture stores packets coming from a large number of interfaces
+/// * unlike the Packet Block, the number of packets dropped by the capture system between this
+///   packet and the previous one is not stored in the header, but rather in an option of the block
+///   itself.
+///
+/// This documentation is copyright (c) 2018 IETF Trust and the persons identified as the
+/// authors of [this document][1]. All rights reserved. Please see the linked document for the full
+/// copyright notice.
+///
+/// [1]: https://github.com/pcapng/pcapng
 #[derive(Clone, PartialEq, Debug)]
 pub struct EnhancedPacket<'a> {
-    /// Interface ID: it specifies the interface this packet comes from; the correct interface will
-    /// be the one whose Interface Description Block (within the current Section of the file) is
-    /// identified by the same number (see Section 3.2) of this field.
+    /// Specifies the interface this packet comes from; the correct interface will be the one whose
+    /// Interface Description Block (within the current Section of the file) is identified by the
+    /// same number (see Section 4.2) of this field. The interface ID MUST be valid, which means
+    /// that an matching interface description block MUST exist.
     pub interface_id: InterfaceId,
-    /// Timestamp (High) and Timestamp (Low): high and low 32-bits of a 64-bit quantity
-    /// representing the timestamp. The timestamp is a single 64-bit unsigned integer representing
-    /// the number of units since 1/1/1970. The way to interpret this field is specified by the
-    /// 'if_tsresol' option (see Figure 9) of the Interface Description block referenced by this
-    /// packet. Please note that differently from the libpcap file format, timestamps are not saved
-    /// as two 32-bit values accounting for the seconds and microseconds since 1/1/1970. They are
-    /// saved as a single 64-bit quantity saved as two 32-bit words.
+    /// Upper 32 bits and lower 32 bits of a 64-bit timestamp. The timestamp is a single 64-bit
+    /// unsigned integer that represents the number of units of time that have elapsed since
+    /// 1970-01-01 00:00:00 UTC. The length of a unit of time is specified by the 'if_tsresol'
+    /// option (see Figure 10) of the Interface Description block referenced by this packet. Note
+    /// that, unlike timestamps in the libpcap file format, timestamps in Enhanced Packet Blocks
+    /// are not saved as two 32-bit values that represent the seconds and microseconds that have
+    /// elapsed since 1970-01-01 00:00:00 UTC. Timestamps in Enhanced Packet Blocks are saved as
+    /// two 32-bit words that represent the upper and lower 32 bits of a single 64-bit quantity.
     pub timestamp: u64,
-    /// Captured Len: number of bytes captured from the packet (i.e. the length of the Packet Data
-    /// field). It will be the minimum value among the actual Packet Length and the snapshot length
-    /// (defined in Figure 9). The value of this field does not include the padding bytes added at
-    /// the end of the Packet Data field to align the Packet Data Field to a 32-bit boundary
+    /// Number of octets captured from the packet (i.e. the length of the Packet Data field). It
+    /// will be the minimum value among the Original Packet Length and the snapshot length for the
+    /// interface (SnapLen, defined in Figure 10). The value of this field does not include the
+    /// padding octets added at the end of the Packet Data field to align the Packet Data field to
+    /// a 32-bit boundary.
     pub captured_len: u32,
-    /// Packet Len: actual length of the packet when it was transmitted on the network. It can be
-    /// different from Captured Len if the user wants only a snapshot of the packet.
+    /// Actual length of the packet when it was transmitted on the network. It can be different
+    /// from Captured Packet Length if the packet has been truncated by the capture process.
     pub packet_len: u32,
-    /// Packet Data: the data coming from the network, including link-layer headers. The actual
-    /// length of this field is Captured Len. The format of the link-layer headers depends on the
-    /// LinkType field specified in the Interface Description Block (see Section 3.2) and it is
-    /// specified in Appendix D.
+    /// The data coming from the network, including link-layer headers. The actual length of this
+    /// field is Captured Packet Length plus the padding to a 32-bit boundary. The format of the
+    /// link-layer headers depends on the LinkType field specified in the Interface Description
+    /// Block (see Section 4.2) and it is specified in the entry for that format in the the
+    /// tcpdump.org link-layer header types registry.
     pub packet_data: &'a [u8],
-    /// Options: optionally, a list of options (formatted according to the rules defined in Section
-    /// 2.5) can be present.
+    /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
+    /// be present.
     pub options: &'a [u8],
 }
 
@@ -281,19 +326,46 @@ impl<'a> FromBytes<'a> for EnhancedPacket<'a> {
     }
 }
 
+/// Contains a single captured packet, or a portion of it, with only a minimal set of information
+/// about it. If this appears in a file, an Interface Description Block is also required, before
+/// this block.
+///
+/// The Simple Packet Block (SPB) is a lightweight container for storing the packets coming from
+/// the network. Its presence is optional.
+///
+/// A Simple Packet Block is similar to an Enhanced Packet Block (see Section 4.3), but it is
+/// smaller, simpler to process and contains only a minimal set of information. This block is
+/// preferred to the standard Enhanced Packet Block when performance or space occupation are
+/// critical factors, such as in sustained traffic capture applications. A capture file can contain
+/// both Enhanced Packet Blocks and Simple Packet Blocks: for example, a capture tool could switch
+/// from Enhanced Packet Blocks to Simple Packet Blocks when the hardware resources become
+/// critical.
+///
+/// The Simple Packet Block does not contain the Interface ID field. Therefore, it MUST be assumed
+/// that all the Simple Packet Blocks have been captured on the interface previously specified in
+/// the first Interface Description Block.
+///
+/// This documentation is copyright (c) 2018 IETF Trust and the persons identified as the
+/// authors of [this document][1]. All rights reserved. Please see the linked document for the full
+/// copyright notice.
+///
+/// [1]: https://github.com/pcapng/pcapng
 #[derive(Clone, PartialEq, Debug)]
 pub struct SimplePacket<'a> {
-    /// Packet Len: actual length of the packet when it was transmitted on the network. Can be
-    /// different from captured len if the packet has been truncated by the capture process.
+    /// Actual length of the packet when it was transmitted on the network. It can be different
+    /// from length of the Packet Data field's length if the packet has been truncated by the
+    /// capture process, in which case the SnapLen value in Section 4.2 will be less than this
+    /// Original Packet Length value, and the SnapLen value MUST be used to determine the size of
+    /// the Packet Data field length.
     pub packet_len: u32,
-    /// Packet Data: the data coming from the network, including link-layers headers. The length of
-    /// this field can be derived from the field Block Total Length, present in the Block Header,
-    /// and it is the minimum value among the SnapLen (present in the Interface Description Block)
-    /// and the Packet Len (present in this header).
+    /// The data coming from the network, including link-layer headers. The length of this field
+    /// can be derived from the field Block Total Length, present in the Block Header, and it is
+    /// the minimum value among the SnapLen (present in the Interface Description Block) and the
+    /// Original Packet Length (present in this header). The format of the data within this Packet
+    /// Data field depends on the LinkType field specified in the Interface Description Block (see
+    /// Section 4.2) and it is specified in the entry for that format in the tcpdump.org link-layer
+    /// header types registry.
     pub packet_data: &'a [u8],
-    /// Options: optionally, a list of options (formatted according to the rules defined in Section
-    /// 2.5) can be present.
-    pub options: &'a [u8],
 }
 
 impl<'a> FromBytes<'a> for SimplePacket<'a> {
@@ -302,41 +374,138 @@ impl<'a> FromBytes<'a> for SimplePacket<'a> {
         Ok(SimplePacket {
             packet_len,
             packet_data: &buf[4..4 + packet_len as usize],
-            options: &buf[4 + packet_len as usize..],
         })
     }
 }
 
+/// Defines the mapping from numeric addresses present in the packet capture and the canonical name
+/// counterpart.
+///
+/// The Name Resolution Block (NRB) is used to support the correlation of numeric addresses
+/// (present in the captured packets) and their corresponding canonical names and it is optional.
+/// Having the literal names saved in the file prevents the need for performing name resolution at
+/// a later time, when the association between names and addresses may be different from the one in
+/// use at capture time. Moreover, the NRB avoids the need for issuing a lot of DNS requests every
+/// time the trace capture is opened, and also provides name resolution when reading the capture
+/// with a machine not connected to the network.
+///
+/// A Name Resolution Block is often placed at the beginning of the file, but no assumptions can be
+/// taken about its position. Multiple NRBs can exist in a pcapng file, either due to memory
+/// constraints or because additional name resolutions were performed by file processing tools,
+/// like network analyzers.
+///
+/// A Name Resolution Block need not contain any Records, except the nrb_record_end Record which
+/// MUST be the last Record. The addresses and names in NRB Records MAY be repeated multiple times;
+/// i.e., the same IP address may resolve to multiple names, the same name may resolve to the
+/// multiple IP addresses, and even the same address-to-name pair may appear multiple times, in the
+/// same NRB or across NRBs.
+///
+/// This documentation is copyright (c) 2018 IETF Trust and the persons identified as the
+/// authors of [this document][1]. All rights reserved. Please see the linked document for the full
+/// copyright notice.
+///
+/// [1]: https://github.com/pcapng/pcapng
+#[derive(Clone, PartialEq, Debug)]
+pub struct NameResolution {
+    /// Zero or more Name Resolution Records (in the TLV format), each of which contains an
+    /// association between a network address and a name. An nrb_record_end MUST be added after the
+    /// last Record, and MUST exist even if there are no other Records in the NRB.
+    pub record_values: Vec<u8>, // TODO
+}
+
+impl<'a> FromBytes<'a> for NameResolution {
+    fn parse<B: ByteOrder>(buf: &[u8]) -> Result<NameResolution> {
+        Ok(NameResolution {
+            record_values: Vec::from(buf),
+        })
+    }
+}
+
+/// Defines how to store some statistical data (e.g. packet dropped, etc) which can be useful to
+/// understand the conditions in which the capture has been made. If this appears in a file, an
+/// Interface Description Block is also required, before this block.
+///
+/// The Interface Statistics Block (ISB) contains the capture statistics for a given interface and
+/// it is optional. The statistics are referred to the interface defined in the current Section
+/// identified by the Interface ID field. An Interface Statistics Block is normally placed at the
+/// end of the file, but no assumptions can be taken about its position - it can even appear
+/// multiple times for the same interface.
+///
+/// This documentation is copyright (c) 2018 IETF Trust and the persons identified as the
+/// authors of [this document][1]. All rights reserved. Please see the linked document for the full
+/// copyright notice.
+///
+/// [1]: https://github.com/pcapng/pcapng
+#[derive(Clone, PartialEq, Debug)]
+pub struct InterfaceStatistics {
+    /// Specifies the interface these statistics refers to; the correct interface will be the one
+    /// whose Interface Description Block (within the current Section of the file) is identified by
+    /// same number (see Section 4.2) of this field.
+    pub interface_id: InterfaceId,
+    /// Time this statistics refers to. The format of the timestamp is the same already defined in
+    /// the Enhanced Packet Block (Section 4.3).
+    pub timestamp_high: u32,
+    pub timestamp_low: u32,
+    /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
+    /// be present.
+    pub options: Vec<u8>,
+}
+
+impl<'a> FromBytes<'a> for InterfaceStatistics {
+    fn parse<B: ByteOrder>(buf: &[u8]) -> Result<InterfaceStatistics> {
+        Ok(InterfaceStatistics {
+            interface_id: InterfaceId(B::read_u32(&buf[0..4])),
+            timestamp_high: B::read_u32(&buf[4..8]),
+            timestamp_low: B::read_u32(&buf[8..12]),
+            options: Vec::from(&buf[12..]),
+        })
+    }
+}
+
+/// Contains a single captured packet, or a portion of it. It is OBSOLETE, and superseded by the
+/// Enhanced Packet Block.
+///
+/// The Packet Block is obsolete, and MUST NOT be used in new files. Use the Enhanced Packet Block
+/// or Simple Packet Block instead. This section is for historical reference only.
+///
+/// A Packet Block was a container for storing packets coming from the network.
+///
+/// This documentation is copyright (c) 2018 IETF Trust and the persons identified as the
+/// authors of [this document][1]. All rights reserved. Please see the linked document for the full
+/// copyright notice.
+///
+/// [1]: https://github.com/pcapng/pcapng
 #[derive(Clone, PartialEq, Debug)]
 pub struct ObsoletePacket<'a> {
-    /// Interface ID: it specifies the interface this packet comes from; the correct interface will
-    /// be the one whose Interface Description Block (within the current Section of the file) is
-    /// identified by the same number (see Section 3.2) of this field.
+    /// Specifies the interface this packet comes from; the correct interface will be the one whose
+    /// Interface Description Block (within the current Section of the file) is identified by the
+    /// same number (see Section 4.2) of this field. The interface ID MUST be valid, which means
+    /// that an matching interface description block MUST exist.
     pub interface_id: InterfaceId,
-    /// Drops Count: a local drop counter. It specifies the number of packets lost (by the
-    /// interface and the operating system) between this packet and the preceding one. The value
-    /// xFFFF (in hexadecimal) is reserved for those systems in which this information is not
-    /// available.
+    /// A local drop counter. It specifies the number of packets lost (by the interface and the
+    /// operating system) between this packet and the preceding one. The value xFFFF (in
+    /// hexadecimal) is reserved for those systems in which this information is not available.
     pub drops_count: u16,
-    /// Timestamp (High) and Timestamp (Low): timestamp of the packet. The format of the timestamp
-    /// is the same already defined in the Enhanced Packet Block (Section 3.3).
-    pub timestamp: u64,
-    /// Captured Len: number of bytes captured from the packet (i.e. the length of the Packet Data
-    /// field). It will be the minimum value among the actual Packet Length and the snapshot length
-    /// (SnapLen defined in Figure 9). The value of this field does not include the padding bytes
-    /// added at the end of the Packet Data field to align the Packet Data Field to a 32-bit
-    /// boundary
+    /// Timestamp of the packet. The format of the timestamp is the same as was already defined for
+    /// the Enhanced Packet Block (Section 4.3).
+    pub timestamp: u64, // FIXME
+    /// Number of octets captured from the packet (i.e. the length of the Packet Data field). It
+    /// will be the minimum value among the Original Packet Length and the snapshot length for the
+    /// interface (SnapLen, defined in Figure 10). The value of this field does not include the
+    /// padding octets added at the end of the Packet Data field to align the Packet Data field to
+    /// a 32-bit boundary.
     pub captured_len: u32,
-    /// Packet Len: actual length of the packet when it was transmitted on the network. Can be
-    /// different from Captured Len if the user wants only a snapshot of the packet.
+    /// Actual length of the packet when it was transmitted on the network. It can be different
+    /// from Captured Packet Length if the packet has been truncated by the capture process.
     pub packet_len: u32,
-    /// Packet Data: the data coming from the network, including link-layer headers. The format of
-    /// the link-layer headers depends on the LinkType field specified in the Interface Description
-    /// Block (see Section 3.2) and it is specified in Appendix D. The actual length of this field
-    /// is Captured Len.
+    /// The data coming from the network, including link-layer headers. The actual length of this
+    /// field is Captured Packet Length plus the padding to a 32-bit boundary. The format of the
+    /// link-layer headers depends on the LinkType field specified in the Interface Description
+    /// Block (see Section 4.2) and it is specified in the entry for that format in the the
+    /// tcpdump.org link-layer header types registry.
     pub packet_data: &'a [u8],
-    /// Options: optionally, a list of options (formatted according to the rules defined in Section
-    /// 2.5) can be present.
+    /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
+    /// be present.
     pub options: &'a [u8],
 }
 
@@ -353,50 +522,6 @@ impl<'a> FromBytes<'a> for ObsoletePacket<'a> {
             packet_len: B::read_u32(&buf[16..20]),
             packet_data: &buf[20..20 + captured_len as usize],
             options: &buf[20 + captured_len as usize..],
-        })
-    }
-}
-
-#[derive(Clone, PartialEq, Debug)]
-pub struct NameResolution {
-    /// This is followed by a zero-terminated list of records (in the TLV format), each of which
-    /// contains an association between a network address and a name. TODO
-    pub record_values: Vec<u8>,
-}
-
-impl<'a> FromBytes<'a> for NameResolution {
-    fn parse<B: ByteOrder>(buf: &[u8]) -> Result<NameResolution> {
-        Ok(NameResolution {
-            record_values: Vec::from(buf),
-        })
-    }
-}
-
-#[derive(Clone, PartialEq, Debug)]
-pub struct InterfaceStatistics {
-    /// Interface ID: it specifies the interface these statistics refers to; the correct interface
-    /// will be the one whose Interface Description Block (within the current Section of the file)
-    /// is identified by same number (see Section 3.2) of this field. Please note: in former
-    /// versions of this document, this field was 16 bits only. As this differs from its usage in
-    /// other places of this doc and as this block was not used "in the wild" before (as to the
-    /// knowledge of the authors), it seems reasonable to change it to 32 bits!
-    pub interface_id: InterfaceId,
-    /// Timestamp: time this statistics refers to. The format of the timestamp is the same already
-    /// defined in the Enhanced Packet Block (Section 3.3).
-    pub timestamp_high: u32,
-    pub timestamp_low: u32,
-    /// Options: optionally, a list of options (formatted according to the rules defined in Section
-    /// 2.5) can be present.
-    pub options: Vec<u8>,
-}
-
-impl<'a> FromBytes<'a> for InterfaceStatistics {
-    fn parse<B: ByteOrder>(buf: &[u8]) -> Result<InterfaceStatistics> {
-        Ok(InterfaceStatistics {
-            interface_id: InterfaceId(B::read_u32(&buf[0..4])),
-            timestamp_high: B::read_u32(&buf[4..8]),
-            timestamp_low: B::read_u32(&buf[8..12]),
-            options: Vec::from(&buf[12..]),
         })
     }
 }
