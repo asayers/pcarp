@@ -205,15 +205,14 @@ impl InterfaceDescription {
                         option_len
                     );
                     let v = self.options[i];
-                    let msb = v & 0b1000_0000 >> 7;
                     let exp = u32::from(v & 0b0111_1111);
-                    if msb == 1 {
-                        opts.units_per_sec = 10_u32.pow(exp);
-                    } else if msb == 0 {
-                        opts.units_per_sec = 2_u32.pow(exp);
+                    match v >> 7 {
+                        0 => opts.units_per_sec = 10_u32.pow(exp),
+                        1 => opts.units_per_sec = 2_u32.pow(exp),
+                        _ => { /* impossible */ }
                     }
                 }
-                _ => {} // skip other option types
+                _ => { /* skip other option types */ }
             }
             let padding_len = (4 - option_len % 4) % 4;
             i += option_len + padding_len;
