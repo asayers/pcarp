@@ -211,7 +211,8 @@ impl InterfaceDescription {
                 }
                 _ => {} // skip other option types
             }
-            i += option_len;
+            let padding_len = (4 - option_len % 4) % 4;
+            i += option_len + padding_len;
         }
         opts
     }
