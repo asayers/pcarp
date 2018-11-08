@@ -39,15 +39,12 @@ pub fn parse_framed_block<B: ByteOrder + KnownByteOrder>(buf: &[u8]) -> Result<B
         0x0000_0006 => Block::from(EnhancedPacket::parse::<B>(body)),
         0x0000_0007 => Block::IRIGTimestamp,
         0x0000_0008 => Block::Arinc429,
-        n => {
-            return Err(Error::UnknownBlockType(n));
-        }
+        n => Block::Unknown(n),
     };
     Ok(block)
 }
 
 #[derive(Clone, PartialEq, Debug)]
-#[repr(u32)]
 pub enum Block<'a> {
     SectionHeader(SectionHeader),               // 0x0A0D0D0A
     InterfaceDescription(InterfaceDescription), // 0x00000001
@@ -58,6 +55,7 @@ pub enum Block<'a> {
     EnhancedPacket(EnhancedPacket<'a>),         // 0x00000006
     IRIGTimestamp,                              // 0x00000007, ignored
     Arinc429,                                   // 0x00000008, ignored
+    Unknown(u32),
 }
 
 impl<'a> From<SectionHeader> for Block<'a> {

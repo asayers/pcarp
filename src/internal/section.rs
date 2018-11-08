@@ -66,6 +66,9 @@ impl Section {
             Block::Arinc429 => {
                 warn!("Arinc429 blocks are ignored");
             }
+            Block::Unknown(n) => {
+                warn!("Not handling unknown block: {}", n);
+            }
         }
     }
 
@@ -103,6 +106,7 @@ impl Section {
             Block::InterfaceStatistics(_) => None,
             Block::IRIGTimestamp => None,
             Block::Arinc429 => None,
+            Block::Unknown(_) => None,
         }
     }
 
