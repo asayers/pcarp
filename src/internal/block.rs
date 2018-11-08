@@ -30,13 +30,13 @@ pub fn parse_framed_block<B: ByteOrder + KnownByteOrder>(buf: &[u8]) -> Result<B
         "Block's start and end lengths don't match"
     );
     let block = match block_type {
-        0x0A0D_0D0A => Block::from(SectionHeader::parse::<B>(body)?),
-        0x0000_0001 => Block::from(InterfaceDescription::parse::<B>(body)?),
-        0x0000_0002 => Block::from(ObsoletePacket::parse::<B>(body)?),
-        0x0000_0003 => Block::from(SimplePacket::parse::<B>(body)?),
-        0x0000_0004 => Block::from(NameResolution::parse::<B>(body)?),
-        0x0000_0005 => Block::from(InterfaceStatistics::parse::<B>(body)?),
-        0x0000_0006 => Block::from(EnhancedPacket::parse::<B>(body)?),
+        0x0A0D_0D0A => Block::from(SectionHeader::parse::<B>(body)),
+        0x0000_0001 => Block::from(InterfaceDescription::parse::<B>(body)),
+        0x0000_0002 => Block::from(ObsoletePacket::parse::<B>(body)),
+        0x0000_0003 => Block::from(SimplePacket::parse::<B>(body)),
+        0x0000_0004 => Block::from(NameResolution::parse::<B>(body)),
+        0x0000_0005 => Block::from(InterfaceStatistics::parse::<B>(body)),
+        0x0000_0006 => Block::from(EnhancedPacket::parse::<B>(body)),
         0x0000_0007 => Block::IRIGTimestamp,
         0x0000_0008 => Block::Arinc429,
         n => {
@@ -139,14 +139,14 @@ pub struct SectionHeader {
 }
 
 impl<'a> FromBytes<'a> for SectionHeader {
-    fn parse<B: ByteOrder + KnownByteOrder>(buf: &[u8]) -> Result<SectionHeader> {
-        Ok(SectionHeader {
+    fn parse<B: ByteOrder + KnownByteOrder>(buf: &[u8]) -> SectionHeader {
+        SectionHeader {
             endianness: B::endianness(),
             major_version: B::read_u16(&buf[4..6]),
             minor_version: B::read_u16(&buf[6..8]),
             section_length: B::read_i64(&buf[8..16]),
             options: Vec::from(&buf[16..]),
-        })
+        }
     }
 }
 
@@ -236,13 +236,13 @@ impl InterfaceDescription {
 }
 
 impl<'a> FromBytes<'a> for InterfaceDescription {
-    fn parse<B: ByteOrder>(buf: &[u8]) -> Result<InterfaceDescription> {
+    fn parse<B: ByteOrder>(buf: &[u8]) -> InterfaceDescription {
         let lt = B::read_u16(&buf[0..2]);
-        Ok(InterfaceDescription {
+        InterfaceDescription {
             link_type: LinkType::from_u16(lt),
             snap_len: B::read_u32(&buf[4..8]),
             options: Vec::from(&buf[8..]),
-        })
+        }
     }
 }
 
@@ -305,18 +305,18 @@ pub struct EnhancedPacket<'a> {
 }
 
 impl<'a> FromBytes<'a> for EnhancedPacket<'a> {
-    fn parse<B: ByteOrder>(buf: &[u8]) -> Result<EnhancedPacket> {
+    fn parse<B: ByteOrder>(buf: &[u8]) -> EnhancedPacket {
         let captured_len = B::read_u32(&buf[12..16]);
         let timestamp_high = B::read_u32(&buf[4..8]);
         let timestamp_low = B::read_u32(&buf[8..12]);
-        Ok(EnhancedPacket {
+        EnhancedPacket {
             interface_id: InterfaceId(B::read_u32(&buf[0..4])),
             timestamp: (u64::from(timestamp_high) << 32) + u64::from(timestamp_low),
             captured_len,
             packet_len: B::read_u32(&buf[16..20]),
             packet_data: &buf[20..20 + captured_len as usize],
             options: &buf[20 + captured_len as usize..],
-        })
+        }
     }
 }
 
@@ -363,12 +363,12 @@ pub struct SimplePacket<'a> {
 }
 
 impl<'a> FromBytes<'a> for SimplePacket<'a> {
-    fn parse<B: ByteOrder>(buf: &[u8]) -> Result<SimplePacket> {
+    fn parse<B: ByteOrder>(buf: &[u8]) -> SimplePacket {
         let packet_len = B::read_u32(&buf[0..4]);
-        Ok(SimplePacket {
+        SimplePacket {
             packet_len,
             packet_data: &buf[4..4 + packet_len as usize],
-        })
+        }
     }
 }
 
@@ -408,10 +408,10 @@ pub struct NameResolution {
 }
 
 impl<'a> FromBytes<'a> for NameResolution {
-    fn parse<B: ByteOrder>(buf: &[u8]) -> Result<NameResolution> {
-        Ok(NameResolution {
+    fn parse<B: ByteOrder>(buf: &[u8]) -> NameResolution {
+        NameResolution {
             record_values: Vec::from(buf),
-        })
+        }
     }
 }
 
@@ -446,13 +446,13 @@ pub struct InterfaceStatistics {
 }
 
 impl<'a> FromBytes<'a> for InterfaceStatistics {
-    fn parse<B: ByteOrder>(buf: &[u8]) -> Result<InterfaceStatistics> {
-        Ok(InterfaceStatistics {
+    fn parse<B: ByteOrder>(buf: &[u8]) -> InterfaceStatistics {
+        InterfaceStatistics {
             interface_id: InterfaceId(B::read_u32(&buf[0..4])),
             timestamp_high: B::read_u32(&buf[4..8]),
             timestamp_low: B::read_u32(&buf[8..12]),
             options: Vec::from(&buf[12..]),
-        })
+        }
     }
 }
 
@@ -504,11 +504,11 @@ pub struct ObsoletePacket<'a> {
 }
 
 impl<'a> FromBytes<'a> for ObsoletePacket<'a> {
-    fn parse<B: ByteOrder>(buf: &[u8]) -> Result<ObsoletePacket> {
+    fn parse<B: ByteOrder>(buf: &[u8]) -> ObsoletePacket {
         let captured_len = B::read_u32(&buf[12..16]);
         let timestamp_high = B::read_u32(&buf[4..8]);
         let timestamp_low = B::read_u32(&buf[8..12]);
-        Ok(ObsoletePacket {
+        ObsoletePacket {
             interface_id: InterfaceId(u32::from(B::read_u16(&buf[0..2]))),
             drops_count: B::read_u16(&buf[2..4]),
             timestamp: (u64::from(timestamp_high) << 4) + u64::from(timestamp_low),
@@ -516,6 +516,6 @@ impl<'a> FromBytes<'a> for ObsoletePacket<'a> {
             packet_len: B::read_u32(&buf[16..20]),
             packet_data: &buf[20..20 + captured_len as usize],
             options: &buf[20 + captured_len as usize..],
-        })
+        }
     }
 }

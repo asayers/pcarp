@@ -62,7 +62,7 @@ impl KnownByteOrder for LittleEndian {
 pub struct InterfaceId(pub u32);
 
 pub trait FromBytes<'a>: Sized {
-    fn parse<B: ByteOrder + KnownByteOrder>(buf: &'a [u8]) -> Result<Self>;
+    fn parse<B: ByteOrder + KnownByteOrder>(buf: &'a [u8]) -> Self;
 }
 
 pub fn require_bytes(buf: &[u8], len: usize) -> Result<()> {
