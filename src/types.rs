@@ -24,13 +24,18 @@ impl From<io::Error> for Error {
     }
 }
 
+/// A single captured packet.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Packet<'a> {
+    /// The time at which the packet was captured.  The resolution depends on the interface.
     pub timestamp: Option<SystemTime>,
+    /// The interface used to capture this packet.
     pub interface: Option<&'a Interface>,
+    /// The raw packet data.
     pub data: &'a [u8],
 }
 
+/// The type of physical link backing a network interface.
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum LinkType {
@@ -312,6 +317,7 @@ pub fn require_bytes(buf: &[u8], len: usize) -> Result<()> {
     }
 }
 
+/// A network interface.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Interface {
     pub link_type: LinkType,
@@ -322,11 +328,11 @@ pub struct Interface {
     /// the resolution as as negative power of 2 (e.g. 10 means 1/1024 of second). If this option is
     /// not present, a resolution of 10^-6 is assumed (i.e. timestamps have the same resolution of
     /// the standard 'libpcap' timestamps).
-    pub units_per_sec: u32,
+    pub(crate) units_per_sec: u32,
 }
 
 impl Interface {
-    pub fn from_desc<B: ByteOrder>(desc: &InterfaceDescription) -> Interface {
+    pub(crate) fn from_desc<B: ByteOrder>(desc: &InterfaceDescription) -> Interface {
         let mut units_per_sec = 1_000_000;
         let mut i = 0;
         loop {

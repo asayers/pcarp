@@ -2,9 +2,23 @@
 pcarp is pure-Rust library for reading pcap-ng files.
 
 * _Correct_:  Agrees with `tshark` across a broad test suite.
-* _Fast_:  Performance is comparable to `libpcap`;  YMMV.
+* _Fast_:  Performance is comparable to `libpcap`, although YMMV.
 * _Flexible_:  Takes anything which implements `Read`;  returns packets with a
   streaming-iterator-style API.
+
+Limitations compared to `libpcap`:
+
+* No support for legacy pcap;  `pcarp` is pcap-ng-only.
+* No dissection of any kind.  `pcarp` gives you the raw packet data.  If you want to parse
+  ethernet/IP/TCP/whatever protocol, try [pnet] or [rshark].
+* No filtering.  This one follows from "no dissection".
+
+[pnet]: https://docs.rs/pnet
+[rshark]: https://docs.rs/rshark
+
+The entry point is [`Pcapng`](struct.Pcapng.html).
+
+## Example
 
 ```
 # use pcarp::Pcapng;
@@ -44,6 +58,7 @@ pub use types::{Error, Interface, LinkType, Packet};
 
 const BUF_CAPACITY: usize = 10_000_000;
 
+/// A capture which can be iterated over.
 pub struct Pcapng<R> {
     rdr: BufReader<R, MinBuffered>,
     finished: bool,
