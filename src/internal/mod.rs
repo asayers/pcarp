@@ -21,7 +21,7 @@ use error::*;
 
 pub const BUF_CAPACITY: usize = 10_000_000;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Copy)]
 pub enum Endianness {
     Big,
     Little,
@@ -58,7 +58,7 @@ impl KnownByteOrder for LittleEndian {
     }
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Copy)]
 pub struct InterfaceId(pub u32);
 
 pub trait FromBytes<'a>: Sized {
@@ -76,7 +76,7 @@ pub fn require_bytes(buf: &[u8], len: usize) -> Result<()> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TimestampOptions {
     /// The if_tsresol option identifies the resolution of timestamps. If the Most Significant Bit
     /// is equal to zero, the remaining bits indicates the resolution of the timestamp as a negative

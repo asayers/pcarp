@@ -4,6 +4,7 @@ All documentation in this module is taken from [https://github.com/pcapng/pcapng
 copyright (c) 2018 IETF Trust and the persons identified as the authors of that document. All
 rights reserved. Please see the linked document for the full copyright notice.
 */
+
 use byteorder::ByteOrder;
 use error::*;
 use internal::*;

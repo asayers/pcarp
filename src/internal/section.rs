@@ -3,6 +3,7 @@ use internal::*;
 use packet::*;
 use std::u32;
 
+#[derive(Clone, PartialEq, Debug)]
 pub struct Section {
     /// Endianness used in the current section. Each section can use a different endianness.
     pub endianness: Endianness,
