@@ -239,8 +239,7 @@ impl<'a> FromBytes<'a> for InterfaceDescription {
     fn parse<B: ByteOrder>(buf: &[u8]) -> Result<InterfaceDescription> {
         let lt = B::read_u16(&buf[0..2]);
         Ok(InterfaceDescription {
-            link_type: LinkType::from_u16_with_hacks(lt)
-                .ok_or_else(|| Error::UnknownLinkType(lt))?,
+            link_type: LinkType::from_u16(lt),
             snap_len: B::read_u32(&buf[4..8]),
             options: Vec::from(&buf[8..]),
         })
