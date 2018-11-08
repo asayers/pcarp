@@ -8,7 +8,6 @@ use std::io::{BufRead, Read};
 pub struct BlockReader<R> {
     rdr: BufReader<R, MinBuffered>,
     endianness: Endianness,
-    consumed: usize,
 }
 
 const DEFAULT_MIN_BUFFERED: usize = 8 * 1024; // 8KB
@@ -25,27 +24,35 @@ impl<R: Read> BlockReader<R> {
         Ok(BlockReader {
             rdr,
             endianness,
-            consumed: 0,
         })
     }
 
-    pub fn next_block(&mut self) -> Result<Block> {
-        self.rdr.consume(self.consumed);
-        self.consumed = 0;
+    pub fn advance<'a>(&'a mut self) -> Result<()> {
+        // Look at the length of the _current_ block, to see how much data to discard
+        let prev_block_len = match self.endianness {
+            Endianness::Big => parse_framed_len::<BigEndian>(self.rdr.buffer()),
+            Endianness::Little => parse_framed_len::<LittleEndian>(self.rdr.buffer()),
+        }?;
+        self.rdr.consume(prev_block_len as usize);
+
         let buf = self.rdr.fill_buf()?;
         if buf.is_empty() {
             return Err(Error::ZeroBytes);
         }
+
+        // We might have a new section coming up; in which case, change endianness.
         if let Some(endianness) = peek_for_shb(buf)? {
             debug!("Found SHB; setting endianness to {:?}", endianness);
             self.endianness = endianness;
         }
-        let frame = match self.endianness {
-            Endianness::Big => FramedBlock::parse::<BigEndian>(buf),
-            Endianness::Little => FramedBlock::parse::<LittleEndian>(buf),
-        }?;
-        self.consumed = frame.len;
-        Ok(frame.block)
+        Ok(())
+    }
+
+    pub fn get(&self) -> Result<Block> {
+        match self.endianness {
+            Endianness::Big => parse_framed_block::<BigEndian>(self.rdr.buffer()),
+            Endianness::Little => parse_framed_block::<LittleEndian>(self.rdr.buffer()),
+        }
     }
 }
 

@@ -10,13 +10,12 @@ fn main() {
     let mut pcap = Pcapng::new(xz2::read::XzDecoder::new(file)).unwrap();
     loop {
         match pcap.next() {
-            Ok(None) => { /* the block was not a packet */ }
             Err(Error::NotEnoughBytes { expected, actual }) => {
                 panic!("Unexpected EOF: {} {}", expected, actual)
             }
             Err(Error::ZeroBytes) => break,
             Err(e) => panic!("{:?}", e),
-            Ok(Some(pkt)) => {
+            Ok(pkt) => {
                 println!(
                     "{:0>10}.{:0>9} {:>6} {}",
                     pkt.timestamp.unwrap().as_secs(),

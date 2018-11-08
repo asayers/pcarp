@@ -22,15 +22,14 @@ impl Section {
         }
     }
 
-    pub fn handle_block<'a>(&'a mut self, block: Block<'a>) -> Option<Packet<'a>> {
+    pub fn handle_block(&mut self, block: &Block) {
         match block {
             Block::SectionHeader(x) => {
                 info!("Starting a new section: {:?}", x);
-                self.endianness = x.endianness;
+                self.endianness = x.endianness.clone();
                 self.interfaces.clear();
                 self.resolved_names.clear();
                 self.timestamp_options.clear();
-                None
             }
             Block::InterfaceDescription(x) => {
                 info!("Defined a new interface: {:?}", x);
@@ -49,9 +48,31 @@ impl Section {
                         .push(x.timestamp_options::<LittleEndian>()),
                 }
                 info!("Set the timestamp options to {:?}", self.timestamp_options);
-                self.interfaces.push(x);
-                None
+                self.interfaces.push(x.clone());
             }
+            Block::EnhancedPacket(_) => (),
+            Block::SimplePacket(_) => (),
+            Block::ObsoletePacket(_) => (),
+            Block::NameResolution(x) => {
+                info!("Defined a new resolved name: {:?}", x);
+                self.resolved_names.push(x.clone());
+            }
+            Block::InterfaceStatistics(x) => {
+                info!("Got some interface statistics: {:?}", x);
+            }
+            Block::IRIGTimestamp => {
+                warn!("IRIG timestamp blocks are ignored");
+            }
+            Block::Arinc429 => {
+                warn!("Arinc429 blocks are ignored");
+            }
+        }
+    }
+
+    pub fn block_to_packet<'a>(&'a self, block: Block<'a>) -> Option<Packet<'a>> {
+        match block {
+            Block::SectionHeader(_) => None,
+            Block::InterfaceDescription(_) => None,
             Block::EnhancedPacket(x) => {
                 debug!("Got a packet: {:?}", x);
                 let interface = self.lookup_interface(&x.interface_id);
@@ -78,23 +99,10 @@ impl Section {
                     x.packet_data,
                 ))
             }
-            Block::NameResolution(x) => {
-                info!("Defined a new resolved name: {:?}", x);
-                self.resolved_names.push(x);
-                None
-            }
-            Block::InterfaceStatistics(x) => {
-                info!("Got some interface statistics: {:?}", x);
-                None
-            }
-            Block::IRIGTimestamp => {
-                warn!("IRIG timestamp blocks are ignored");
-                None
-            }
-            Block::Arinc429 => {
-                warn!("Arinc429 blocks are ignored");
-                None
-            }
+            Block::NameResolution(_) => None,
+            Block::InterfaceStatistics(_) => None,
+            Block::IRIGTimestamp => None,
+            Block::Arinc429 => None,
         }
     }
 

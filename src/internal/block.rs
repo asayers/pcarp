@@ -9,9 +9,41 @@ use error::*;
 use internal::*;
 use link_type::*;
 
-pub struct FramedBlock<'a> {
-    pub len: usize,
-    pub block: Block<'a>,
+pub fn parse_framed_len<B: ByteOrder + KnownByteOrder>(buf: &[u8]) -> Result<u32> {
+    require_bytes(buf, 8)?;
+    Ok(B::read_u32(&buf[4..8]))
+}
+
+pub fn parse_framed_block<B: ByteOrder + KnownByteOrder>(buf: &[u8]) -> Result<Block> {
+    require_bytes(buf, 8)?;
+    let block_type = B::read_u32(&buf[..4]);
+    let block_length = B::read_u32(&buf[4..8]) as usize;
+    require_bytes(buf, block_length)?;
+    debug!(
+        "Got a complete block: type {:x}, len {}",
+        block_type, block_length
+    );
+    let body = &buf[8..block_length - 4];
+    let block_length_2 = B::read_u32(&buf[block_length - 4..block_length]) as usize;
+    assert_eq!(
+        block_length, block_length_2,
+        "Block's start and end lengths don't match"
+    );
+    let block = match block_type {
+        0x0A0D_0D0A => Block::from(SectionHeader::parse::<B>(body)?),
+        0x0000_0001 => Block::from(InterfaceDescription::parse::<B>(body)?),
+        0x0000_0002 => Block::from(ObsoletePacket::parse::<B>(body)?),
+        0x0000_0003 => Block::from(SimplePacket::parse::<B>(body)?),
+        0x0000_0004 => Block::from(NameResolution::parse::<B>(body)?),
+        0x0000_0005 => Block::from(InterfaceStatistics::parse::<B>(body)?),
+        0x0000_0006 => Block::from(EnhancedPacket::parse::<B>(body)?),
+        0x0000_0007 => Block::IRIGTimestamp,
+        0x0000_0008 => Block::Arinc429,
+        n => {
+            return Err(Error::UnknownBlockType(n));
+        }
+    };
+    Ok(block)
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -26,43 +58,6 @@ pub enum Block<'a> {
     EnhancedPacket(EnhancedPacket<'a>),         // 0x00000006
     IRIGTimestamp,                              // 0x00000007, ignored
     Arinc429,                                   // 0x00000008, ignored
-}
-
-impl<'a> FromBytes<'a> for FramedBlock<'a> {
-    fn parse<B: ByteOrder + KnownByteOrder>(buf: &[u8]) -> Result<FramedBlock> {
-        require_bytes(buf, 8)?;
-        let block_type = B::read_u32(&buf[..4]);
-        let block_length = B::read_u32(&buf[4..8]) as usize;
-        require_bytes(buf, block_length)?;
-        debug!(
-            "Got a complete block: type {:x}, len {}",
-            block_type, block_length
-        );
-        let body = &buf[8..block_length - 4];
-        let block_length_2 = B::read_u32(&buf[block_length - 4..block_length]) as usize;
-        assert_eq!(
-            block_length, block_length_2,
-            "Block's start and end lengths don't match"
-        );
-        let block = match block_type {
-            0x0A0D_0D0A => Block::from(SectionHeader::parse::<B>(body)?),
-            0x0000_0001 => Block::from(InterfaceDescription::parse::<B>(body)?),
-            0x0000_0002 => Block::from(ObsoletePacket::parse::<B>(body)?),
-            0x0000_0003 => Block::from(SimplePacket::parse::<B>(body)?),
-            0x0000_0004 => Block::from(NameResolution::parse::<B>(body)?),
-            0x0000_0005 => Block::from(InterfaceStatistics::parse::<B>(body)?),
-            0x0000_0006 => Block::from(EnhancedPacket::parse::<B>(body)?),
-            0x0000_0007 => Block::IRIGTimestamp,
-            0x0000_0008 => Block::Arinc429,
-            n => {
-                return Err(Error::UnknownBlockType(n));
-            }
-        };
-        Ok(FramedBlock {
-            len: block_length,
-            block,
-        })
-    }
 }
 
 impl<'a> From<SectionHeader> for Block<'a> {

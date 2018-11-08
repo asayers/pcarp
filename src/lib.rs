@@ -39,6 +39,7 @@ pub struct Pcapng<R> {
 }
 
 impl<R: Read> Pcapng<R> {
+    /// Create a new `Pcapng`.
     pub fn new(rdr: R) -> Result<Pcapng<R>> {
         Ok(Pcapng {
             block_reader: BlockReader::new(rdr)?,
@@ -46,9 +47,25 @@ impl<R: Read> Pcapng<R> {
         })
     }
 
-    pub fn next(&mut self) -> Result<Option<Packet>> {
-        let block = self.block_reader.next_block()?;
-        Ok(self.section.handle_block(block))
+    pub fn advance(&mut self) -> Result<()> {
+        self.block_reader.advance()?;
+        let block = self.block_reader.get()?;
+        self.section.handle_block(&block);
+        Ok(())
+    }
+
+    pub fn get<'a>(&'a self) -> Result<Option<Packet<'a>>> {
+        let block = self.block_reader.get()?;
+        Ok(self.section.block_to_packet(block))
+    }
+
+    /// Get the next packet
+    pub fn next<'a, 'b>(&'a mut self) -> Result<Packet<'b>> where 'a: 'b {
+        loop {
+            self.advance()?;
+            if self.get()?.is_some() { break; }
+        }
+        Ok(self.get()?.unwrap())
     }
 }
 
