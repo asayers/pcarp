@@ -16,7 +16,7 @@ let uncompressed = xz2::read::XzDecoder::new(file);
 let mut pcap = Pcapng::new(uncompressed).unwrap();
 while let Some(pkt) = pcap.next() {
     let pkt = pkt.unwrap();
-    let ts = pkt.timestamp.unwrap_or(Duration::from_secs(0));
+    let ts = pkt.timestamp.unwrap_or(UNIX_EPOCH);
     println!("[{:?}] Packet with length {}", ts, pkt.data.len());
 }
 ```
@@ -38,7 +38,7 @@ use buf_redux::BufReader;
 use byteorder::{BigEndian, LittleEndian};
 use std::io::{BufRead, Read};
 use std::ops::Range;
-use std::time::Duration;
+use std::time::*;
 use types::*;
 pub use types::{Error, Interface, LinkType, Packet};
 
@@ -211,12 +211,12 @@ impl<R: Read> Pcapng<R> {
         &self.interfaces[interface_id.0 as usize]
     }
 
-    fn resolve_timestamp(&self, interface_id: InterfaceId, timestamp: u64) -> Duration {
+    fn resolve_timestamp(&self, interface_id: InterfaceId, timestamp: u64) -> SystemTime {
         let iface = self.lookup_interface(interface_id);
         let units_per_sec = u64::from(iface.units_per_sec);
         let secs = timestamp / units_per_sec;
         let nanos = ((timestamp % units_per_sec) * 1_000_000_000 / units_per_sec) as u32;
-        Duration::new(secs, nanos)
+        SystemTime::UNIX_EPOCH + Duration::new(secs, nanos)
     }
 }
 

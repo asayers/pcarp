@@ -49,7 +49,7 @@ fn main() {
     while let Some(pkt) = pcap.next() {
         let pkt = pkt.unwrap();
         n += 1;
-        let ts = SystemTime::UNIX_EPOCH + pkt.timestamp.unwrap_or(Duration::from_secs(0));
+        let ts = pkt.timestamp.unwrap_or(SystemTime::UNIX_EPOCH);
         println!(
             "[{}] {:>5}  {}",
             humantime::format_rfc3339_nanos(ts),

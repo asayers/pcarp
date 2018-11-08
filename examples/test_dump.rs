@@ -10,10 +10,15 @@ fn main() {
     let mut pcap = Pcapng::new(xz2::read::XzDecoder::new(file)).unwrap();
     while let Some(pkt) = pcap.next() {
         let pkt = pkt.unwrap();
+        let ts = pkt
+            .timestamp
+            .unwrap()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .unwrap();
         println!(
             "{:0>10}.{:0>9} {:>6} {}",
-            pkt.timestamp.unwrap().as_secs(),
-            pkt.timestamp.unwrap().subsec_nanos(),
+            ts.as_secs(),
+            ts.subsec_nanos(),
             pkt.data.len(),
             sha1::Sha1::from(pkt.data).hexdigest()
         );

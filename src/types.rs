@@ -2,7 +2,7 @@ use block::*;
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use std::io;
 use std::result;
-use std::time::Duration;
+use std::time::SystemTime;
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -26,7 +26,7 @@ impl From<io::Error> for Error {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Packet<'a> {
-    pub timestamp: Option<Duration>,
+    pub timestamp: Option<SystemTime>,
     pub interface: Option<&'a Interface>,
     pub data: &'a [u8],
 }
