@@ -2,3 +2,4 @@ target/
 **/*.rs.bk
 Cargo.lock
 integration_tests/*.actual
+rusty-tags.vi
