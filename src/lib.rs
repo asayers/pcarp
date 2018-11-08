@@ -57,6 +57,7 @@ use types::*;
 pub use types::{Error, Interface, LinkType, Packet};
 
 const BUF_CAPACITY: usize = 10_000_000;
+const DEFAULT_MIN_BUFFERED: usize = 8 * 1024; // 8KB
 
 /// A packet capture which can be iterated over.
 pub struct Capture<R> {
@@ -78,17 +79,11 @@ pub struct Capture<R> {
     current_data: Range<usize>,
 }
 
-const DEFAULT_MIN_BUFFERED: usize = 8 * 1024; // 8KB
-
 impl<R: Read> Capture<R> {
     /// Create a new `Capture`.
     pub fn new(rdr: R) -> Result<Capture<R>> {
-        Self::with_capacity(rdr, BUF_CAPACITY)
-    }
-
-    fn with_capacity(rdr: R, cap: usize) -> Result<Capture<R>> {
-        let mut rdr =
-            BufReader::with_capacity(cap, rdr).set_policy(MinBuffered(DEFAULT_MIN_BUFFERED));
+        let mut rdr = BufReader::with_capacity(BUF_CAPACITY, rdr)
+            .set_policy(MinBuffered(DEFAULT_MIN_BUFFERED));
         let endianness = peek_for_shb(rdr.fill_buf()?)?.ok_or(Error::DidntStartWithSHB)?;
         Ok(Capture {
             rdr,
