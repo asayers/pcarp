@@ -12,7 +12,6 @@ use pcarp::*;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
-use std::thread;
 use std::time::*;
 
 fn main() {
@@ -45,38 +44,20 @@ fn main() {
     };
     let mut pcap = Pcapng::new(reader).unwrap();
 
-    let ts = Instant::now();
+    let start = Instant::now();
     let mut n = 0;
-    loop {
-        match pcap.next() {
-            Ok(Some(pkt)) => {
-                n += 1;
-                let ts = SystemTime::UNIX_EPOCH + pkt.timestamp.unwrap_or(Duration::from_secs(0));
-                println!(
-                    "[{}] {:>5}  {}",
-                    humantime::format_rfc3339_nanos(ts),
-                    pkt.data.len(),
-                    sanitize(pkt.data)
-                );
-            }
-            Ok(None) => { /* the block was not a packet */ }
-            Err(Error::NotEnoughBytes { expected, actual }) => {
-                warn!(
-                    "Not enough bytes ({}/{}); sleeping and retrying.",
-                    actual, expected
-                );
-                thread::sleep(Duration::from_millis(500));
-            }
-            Err(Error::ZeroBytes) => {
-                info!("EOF. Terminating");
-                break;
-            }
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
+    while let Some(pkt) = pcap.next() {
+        let pkt = pkt.unwrap();
+        n += 1;
+        let ts = SystemTime::UNIX_EPOCH + pkt.timestamp.unwrap_or(Duration::from_secs(0));
+        println!(
+            "[{}] {:>5}  {}",
+            humantime::format_rfc3339_nanos(ts),
+            pkt.data.len(),
+            sanitize(pkt.data)
+        );
         if n % 1000 == 0 {
-            let nanos = ts.elapsed().subsec_nanos();
+            let nanos = start.elapsed().subsec_nanos();
             let bps = f64::from(n) * 1_000_000_000.0 / f64::from(nanos);
             info!("Read {} blocks at {} pps", n, bps);
         }

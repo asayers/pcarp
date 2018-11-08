@@ -1,5 +1,38 @@
-#[allow(non_camel_case_types)]
+use block::*;
+use byteorder::{BigEndian, ByteOrder, LittleEndian};
+use std::io;
+use std::result;
+use std::time::Duration;
+
+pub type Result<T> = result::Result<T, Error>;
+
+#[derive(Debug, Fail)]
+pub enum Error {
+    #[fail(display = "Didn't understand magic number {:?}", _0)]
+    DidntUnderstandMagicNumber([u8; 4]),
+    #[fail(display = "Not enough bytes (expected {}, saw {})", _0, _1)]
+    NotEnoughBytes { expected: usize, actual: usize },
+    #[fail(display = "Section didn't start with an SHB")]
+    DidntStartWithSHB,
+    #[fail(display = "IO error: {}", _0)]
+    IO(#[cause] io::Error),
+}
+
+impl From<io::Error> for Error {
+    fn from(x: io::Error) -> Error {
+        Error::IO(x)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
+pub struct Packet<'a> {
+    pub timestamp: Option<Duration>,
+    pub interface: Option<&'a Interface>,
+    pub data: &'a [u8],
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum LinkType {
     /// No link layer information. A packet saved with this link layer contains a raw L3 packet
     /// preceded by a 32-bit host-byte-order AF_ value indicating the specific L3 type.
@@ -220,6 +253,120 @@ impl LinkType {
             12 => LinkType::RAW,
             14 => LinkType::RAW,
             x => LinkType::Unknown(x),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Copy)]
+pub enum Endianness {
+    Big,
+    Little,
+}
+
+impl Endianness {
+    pub fn parse_from_magic(buf: &[u8]) -> Result<Self> {
+        let magic = &buf[0..4];
+        match magic {
+            [0x1A, 0x2B, 0x3C, 0x4D] => Ok(Endianness::Big),
+            [0x4D, 0x3C, 0x2B, 0x1A] => Ok(Endianness::Little),
+            _ => {
+                let mut unknown_magic = [0; 4];
+                unknown_magic.copy_from_slice(magic);
+                Err(Error::DidntUnderstandMagicNumber(unknown_magic))
+            }
+        }
+    }
+}
+
+pub trait KnownByteOrder {
+    fn endianness() -> Endianness;
+}
+
+impl KnownByteOrder for BigEndian {
+    fn endianness() -> Endianness {
+        Endianness::Big
+    }
+}
+
+impl KnownByteOrder for LittleEndian {
+    fn endianness() -> Endianness {
+        Endianness::Little
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Copy)]
+pub struct InterfaceId(pub u32);
+
+pub trait FromBytes<'a>: Sized {
+    fn parse<B: ByteOrder + KnownByteOrder>(buf: &'a [u8]) -> Self;
+}
+
+pub fn require_bytes(buf: &[u8], len: usize) -> Result<()> {
+    if buf.len() < len {
+        Err(Error::NotEnoughBytes {
+            expected: len,
+            actual: buf.len(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Interface {
+    pub link_type: LinkType,
+    /// The if_tsresol option identifies the resolution of timestamps. If the Most Significant Bit
+    /// is equal to zero, the remaining bits indicates the resolution of the timestamp as a negative
+    /// power of 10 (e.g. 6 means microsecond resolution, timestamps are the number of microseconds
+    /// since 1/1/1970). If the Most Significant Bit is equal to one, the remaining bits indicates
+    /// the resolution as as negative power of 2 (e.g. 10 means 1/1024 of second). If this option is
+    /// not present, a resolution of 10^-6 is assumed (i.e. timestamps have the same resolution of
+    /// the standard 'libpcap' timestamps).
+    pub units_per_sec: u32,
+}
+
+impl Interface {
+    pub fn from_desc<B: ByteOrder>(desc: InterfaceDescription) -> Interface {
+        let mut units_per_sec = 1_000_000;
+        let mut i = 0;
+        loop {
+            if desc.options.len() < i + 4 {
+                // no further options
+                break;
+            }
+            let option_type = B::read_u16(&desc.options[i..i + 2]);
+            i += 2;
+            let option_len = B::read_u16(&desc.options[i..i + 2]) as usize;
+            i += 2;
+            match option_type {
+                0 => {
+                    // end of options
+                    assert!(i == desc.options.len());
+                    break;
+                }
+                9 => {
+                    // if_tsresol
+                    assert!(
+                        option_len == 1,
+                        "option_len for if_tsresol should be 1 but got {}",
+                        option_len
+                    );
+                    let v = desc.options[i];
+                    let exp = u32::from(v & 0b0111_1111);
+                    match v >> 7 {
+                        0 => units_per_sec = 10_u32.pow(exp),
+                        1 => units_per_sec = 2_u32.pow(exp),
+                        _ => { /* impossible */ }
+                    }
+                }
+                _ => { /* skip other option types */ }
+            }
+            let padding_len = (4 - option_len % 4) % 4;
+            i += option_len + padding_len;
+        }
+        Interface {
+            link_type: desc.link_type,
+            units_per_sec,
         }
     }
 }

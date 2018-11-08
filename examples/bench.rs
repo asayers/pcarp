@@ -1,88 +1,41 @@
 extern crate pcap;
 extern crate pcarp;
 
-use pcap::Capture;
-use pcarp::Pcapng;
-use std::fs::File;
-use std::path::Path;
 use std::time::*;
 
 fn main() {
-    let path = Path::new("test_data/foo.pcapng");
-    run_both(&path);
-    run_pcapng(&path);
-    run_libpcap(&path);
-}
-
-fn run_both(path: &Path) {
-    let file = File::open(path).unwrap();
-    let mut pcap1 = Pcapng::new(file).unwrap();
-    let mut pcap2 = Capture::from_file(path).unwrap();
-    let mut n = 0;
-    loop {
-        n += 1;
-        let p2 = pcap2.next().unwrap();
-        loop {
-            match pcap1.next() {
-                Ok(Some(p1)) => {
-                    if p1.data == p2.data {
-                        println!("yeah {}", n);
-                    } else {
-                        println!("nooo!");
-                    }
-                    break;
-                }
-                Ok(None) => {}
-                Err(pcarp::Error::NotEnoughBytes { expected, actual }) => {
-                    println!("waiting {}/{}", actual, expected);
-                }
-                e => panic!("{:?}", e),
-            }
-        }
+    let path = std::path::PathBuf::from(std::env::args().nth(1).unwrap());
+    let file = std::fs::File::open(&path).unwrap();
+    let mut pcap = pcarp::Pcapng::new(file).unwrap();
+    let mut n1 = 0;
+    let mut bytes1 = 0;
+    let start = Instant::now();
+    while let Some(pkt) = pcap.next() {
+        let pkt = pkt.unwrap();
+        n1 += 1;
+        bytes1 += pkt.data.len();
     }
-}
+    let t1 = start.elapsed();
 
-fn run_pcapng(path: &Path) {
-    let file = File::open(path).unwrap();
-    let mut pcap = Pcapng::new(file).unwrap();
-    let ts = Instant::now();
-    let mut n: u64 = 0;
+    let mut pcap = pcap::Capture::from_file(&path).unwrap();
+    let mut n2 = 0;
+    let mut bytes2 = 0;
+    let start = Instant::now();
     loop {
         match pcap.next() {
-            Ok(Some(_)) => {
-                n += 1;
-            }
-            Ok(None) => { /* the block was not a packet */ }
-            Err(pcarp::Error::NotEnoughBytes { .. }) => break,
-            Err(pcarp::Error::ZeroBytes) => break,
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
-    }
-    let nanos = ts.elapsed().subsec_nanos();
-    let secs = f64::from(nanos) / 1_000_000_000.0;
-    let bps = n as f64 / secs;
-    println!("Read {} packets at {} pps", n, bps);
-}
-
-fn run_libpcap(path: &Path) {
-    let mut pcap = Capture::from_file(path).unwrap();
-    let ts = Instant::now();
-    let mut n: u64 = 0;
-    loop {
-        match pcap.next() {
-            Ok(_) => {
-                n += 1;
-            }
             Err(pcap::Error::NoMorePackets) => break,
-            Err(e) => {
-                panic!("{:?}", e);
+            Err(_) => (),
+            Ok(pkt) => {
+                n2 += 1;
+                bytes2 += pkt.data.len();
             }
         }
     }
-    let nanos = ts.elapsed().subsec_nanos();
-    let secs = f64::from(nanos) / 1_000_000_000.0;
-    let bps = n as f64 / secs;
-    println!("Read {} packets at {} pps", n, bps);
+    let t2 = start.elapsed();
+
+    assert_eq!(n1, n2);
+    assert_eq!(bytes1, bytes2);
+
+    let x = 2.0 * (t1.subsec_nanos() as f64 - t2.subsec_nanos() as f64) / (t1.subsec_nanos() + t2.subsec_nanos()) as f64;
+    println!("{}", x);
 }

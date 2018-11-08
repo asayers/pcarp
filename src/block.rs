@@ -1,71 +1,76 @@
-/*! Block definitions.
+/*! Block definitions.  Not meant for consumption.
 
-All documentation in this module is taken from [https://github.com/pcapng/pcapng][] and is
-copyright (c) 2018 IETF Trust and the persons identified as the authors of that document. All
-rights reserved. Please see the linked document for the full copyright notice.
+> **Standard caveat**: Internals are exposed for the sake of interest only.
+> The API may change in a patch bump.
+> The user may need to enforce invariants.
+> The documentation may be inaccurate.
+
+If you want to get an idea of how the pcap-ng format works, take a look at
+[`Block`](enum.Block.html).
+
+All documentation in this module is taken from [the pcap-ng spec][].  It is copyright (c) 2018 IETF
+Trust and the persons identified as the authors of the linked document. All rights reserved.
+
+[the pcap-ng spec]: https://github.com/pcapng/pcapng
 */
 
 use byteorder::ByteOrder;
-use error::*;
-use internal::*;
-use link_type::*;
-
-pub fn parse_framed_len<B: ByteOrder + KnownByteOrder>(buf: &[u8]) -> Result<u32> {
-    require_bytes(buf, 8)?;
-    Ok(B::read_u32(&buf[4..8]))
-}
-
-pub fn parse_framed_block<B: ByteOrder + KnownByteOrder>(buf: &[u8]) -> Result<Block> {
-    require_bytes(buf, 8)?;
-    let block_type = B::read_u32(&buf[..4]);
-    let block_length = B::read_u32(&buf[4..8]) as usize;
-    require_bytes(buf, block_length)?;
-    debug!(
-        "Got a complete block: type {:x}, len {}",
-        block_type, block_length
-    );
-    let body = &buf[8..block_length - 4];
-    let block_length_2 = B::read_u32(&buf[block_length - 4..block_length]) as usize;
-    assert_eq!(
-        block_length, block_length_2,
-        "Block's start and end lengths don't match"
-    );
-    let block = match block_type {
-        0x0A0D_0D0A => Block::from(SectionHeader::parse::<B>(body)),
-        0x0000_0001 => Block::from(InterfaceDescription::parse::<B>(body)),
-        0x0000_0002 => Block::from(ObsoletePacket::parse::<B>(body)),
-        0x0000_0003 => Block::from(SimplePacket::parse::<B>(body)),
-        0x0000_0004 => Block::from(NameResolution::parse::<B>(body)),
-        0x0000_0005 => Block::from(InterfaceStatistics::parse::<B>(body)),
-        0x0000_0006 => Block::from(EnhancedPacket::parse::<B>(body)),
-        0x0000_0007 => Block::IRIGTimestamp,
-        0x0000_0008 => Block::Arinc429,
-        n => Block::Unknown(n),
-    };
-    Ok(block)
-}
+use std::ops::Range;
+use types::*;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Block<'a> {
-    SectionHeader(SectionHeader),               // 0x0A0D0D0A
-    InterfaceDescription(InterfaceDescription), // 0x00000001
-    ObsoletePacket(ObsoletePacket<'a>),         // 0x00000002
-    SimplePacket(SimplePacket<'a>),             // 0x00000003
-    NameResolution(NameResolution),             // 0x00000004
-    InterfaceStatistics(InterfaceStatistics),   // 0x00000005
-    EnhancedPacket(EnhancedPacket<'a>),         // 0x00000006
-    IRIGTimestamp,                              // 0x00000007, ignored
-    Arinc429,                                   // 0x00000008, ignored
+    SectionHeader(SectionHeader<'a>),               // 0x0A0D0D0A
+    InterfaceDescription(InterfaceDescription<'a>), // 0x00000001
+    ObsoletePacket(ObsoletePacket<'a>),             // 0x00000002
+    SimplePacket(SimplePacket),                     // 0x00000003
+    NameResolution(NameResolution),                 // 0x00000004
+    InterfaceStatistics(InterfaceStatistics<'a>),   // 0x00000005
+    EnhancedPacket(EnhancedPacket<'a>),             // 0x00000006
+    IRIGTimestamp,                                  // 0x00000007, ignored
+    Arinc429,                                       // 0x00000008, ignored
     Unknown(u32),
 }
 
-impl<'a> From<SectionHeader> for Block<'a> {
-    fn from(x: SectionHeader) -> Self {
+impl<'a> Block<'a> {
+    pub fn parse<B: ByteOrder + KnownByteOrder>(buf: &[u8]) -> Result<(usize, Block)> {
+        require_bytes(buf, 8)?;
+        let block_type = B::read_u32(&buf[..4]);
+        let block_length = B::read_u32(&buf[4..8]) as usize;
+        require_bytes(buf, block_length)?;
+        debug!(
+            "Got a complete block: type {:x}, len {}",
+            block_type, block_length
+        );
+        let body = &buf[8..block_length - 4];
+        let block_length_2 = B::read_u32(&buf[block_length - 4..block_length]) as usize;
+        assert_eq!(
+            block_length, block_length_2,
+            "Block's start and end lengths don't match"
+        );
+        let block = match block_type {
+            0x0A0D_0D0A => Block::from(SectionHeader::parse::<B>(body)),
+            0x0000_0001 => Block::from(InterfaceDescription::parse::<B>(body)),
+            0x0000_0002 => Block::from(ObsoletePacket::parse::<B>(body)),
+            0x0000_0003 => Block::from(SimplePacket::parse::<B>(body)),
+            0x0000_0004 => Block::from(NameResolution::parse::<B>(body)),
+            0x0000_0005 => Block::from(InterfaceStatistics::parse::<B>(body)),
+            0x0000_0006 => Block::from(EnhancedPacket::parse::<B>(body)),
+            0x0000_0007 => Block::IRIGTimestamp,
+            0x0000_0008 => Block::Arinc429,
+            n => Block::Unknown(n),
+        };
+        Ok((block_length, block))
+    }
+}
+
+impl<'a> From<SectionHeader<'a>> for Block<'a> {
+    fn from(x: SectionHeader<'a>) -> Self {
         Block::SectionHeader(x)
     }
 }
-impl<'a> From<InterfaceDescription> for Block<'a> {
-    fn from(x: InterfaceDescription) -> Self {
+impl<'a> From<InterfaceDescription<'a>> for Block<'a> {
+    fn from(x: InterfaceDescription<'a>) -> Self {
         Block::InterfaceDescription(x)
     }
 }
@@ -74,8 +79,8 @@ impl<'a> From<ObsoletePacket<'a>> for Block<'a> {
         Block::ObsoletePacket(x)
     }
 }
-impl<'a> From<SimplePacket<'a>> for Block<'a> {
-    fn from(x: SimplePacket<'a>) -> Self {
+impl<'a> From<SimplePacket> for Block<'a> {
+    fn from(x: SimplePacket) -> Self {
         Block::SimplePacket(x)
     }
 }
@@ -84,8 +89,8 @@ impl<'a> From<NameResolution> for Block<'a> {
         Block::NameResolution(x)
     }
 }
-impl<'a> From<InterfaceStatistics> for Block<'a> {
-    fn from(x: InterfaceStatistics) -> Self {
+impl<'a> From<InterfaceStatistics<'a>> for Block<'a> {
+    fn from(x: InterfaceStatistics<'a>) -> Self {
         Block::InterfaceStatistics(x)
     }
 }
@@ -107,7 +112,7 @@ impl<'a> From<EnhancedPacket<'a>> for Block<'a> {
 ///
 /// [1]: https://github.com/pcapng/pcapng
 #[derive(Clone, PartialEq, Debug)]
-pub struct SectionHeader {
+pub struct SectionHeader<'a> {
     /// Used to distinguish sections that have been saved on little-endian machines from the ones
     /// saved on big-endian machines.
     pub endianness: Endianness,
@@ -134,17 +139,17 @@ pub struct SectionHeader {
     pub section_length: i64,
     /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
     /// be present.
-    pub options: Vec<u8>,
+    pub options: &'a [u8],
 }
 
-impl<'a> FromBytes<'a> for SectionHeader {
-    fn parse<B: ByteOrder + KnownByteOrder>(buf: &[u8]) -> SectionHeader {
+impl<'a> FromBytes<'a> for SectionHeader<'a> {
+    fn parse<B: ByteOrder + KnownByteOrder>(buf: &'a[u8]) -> SectionHeader<'a> {
         SectionHeader {
             endianness: B::endianness(),
             major_version: B::read_u16(&buf[4..6]),
             minor_version: B::read_u16(&buf[6..8]),
             section_length: B::read_i64(&buf[8..16]),
-            options: Vec::from(&buf[16..]),
+            options: &buf[16..],
         }
     }
 }
@@ -179,7 +184,7 @@ impl<'a> FromBytes<'a> for SectionHeader {
 ///
 /// [1]: https://github.com/pcapng/pcapng
 #[derive(Clone, PartialEq, Debug)]
-pub struct InterfaceDescription {
+pub struct InterfaceDescription<'a> {
     /// A value that defines the link layer type of this interface. The list of Standardized Link
     /// Layer Type codes is available in the tcpdump.org link-layer header types registry.
     pub link_type: LinkType,
@@ -188,59 +193,16 @@ pub struct InterfaceDescription {
     pub snap_len: u32,
     /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
     /// be present.
-    pub options: Vec<u8>,
+    pub options: &'a [u8],
 }
 
-impl InterfaceDescription {
-    pub fn timestamp_options<B: ByteOrder>(&self) -> TimestampOptions {
-        let mut opts = TimestampOptions::new();
-        let mut i = 0;
-        loop {
-            if self.options.len() < i + 4 {
-                // no further options
-                break;
-            }
-            let option_type = B::read_u16(&self.options[i..i + 2]);
-            i += 2;
-            let option_len = B::read_u16(&self.options[i..i + 2]) as usize;
-            i += 2;
-            match option_type {
-                0 => {
-                    // end of options
-                    assert!(i == self.options.len());
-                    break;
-                }
-                9 => {
-                    // if_tsresol
-                    assert!(
-                        option_len == 1,
-                        "option_len for if_tsresol should be 1 but got {}",
-                        option_len
-                    );
-                    let v = self.options[i];
-                    let exp = u32::from(v & 0b0111_1111);
-                    match v >> 7 {
-                        0 => opts.units_per_sec = 10_u32.pow(exp),
-                        1 => opts.units_per_sec = 2_u32.pow(exp),
-                        _ => { /* impossible */ }
-                    }
-                }
-                _ => { /* skip other option types */ }
-            }
-            let padding_len = (4 - option_len % 4) % 4;
-            i += option_len + padding_len;
-        }
-        opts
-    }
-}
-
-impl<'a> FromBytes<'a> for InterfaceDescription {
-    fn parse<B: ByteOrder>(buf: &[u8]) -> InterfaceDescription {
+impl<'a> FromBytes<'a> for InterfaceDescription<'a> {
+    fn parse<B: ByteOrder>(buf: &'a [u8]) -> InterfaceDescription<'a> {
         let lt = B::read_u16(&buf[0..2]);
         InterfaceDescription {
             link_type: LinkType::from_u16(lt),
             snap_len: B::read_u32(&buf[4..8]),
-            options: Vec::from(&buf[8..]),
+            options: &buf[8..],
         }
     }
 }
@@ -297,14 +259,14 @@ pub struct EnhancedPacket<'a> {
     /// link-layer headers depends on the LinkType field specified in the Interface Description
     /// Block (see Section 4.2) and it is specified in the entry for that format in the the
     /// tcpdump.org link-layer header types registry.
-    pub packet_data: &'a [u8],
+    pub packet_data: Range<usize>,
     /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
     /// be present.
     pub options: &'a [u8],
 }
 
 impl<'a> FromBytes<'a> for EnhancedPacket<'a> {
-    fn parse<B: ByteOrder>(buf: &[u8]) -> EnhancedPacket {
+    fn parse<B: ByteOrder>(buf: &'a [u8]) -> EnhancedPacket<'a> {
         let captured_len = B::read_u32(&buf[12..16]);
         let timestamp_high = B::read_u32(&buf[4..8]);
         let timestamp_low = B::read_u32(&buf[8..12]);
@@ -313,7 +275,7 @@ impl<'a> FromBytes<'a> for EnhancedPacket<'a> {
             timestamp: (u64::from(timestamp_high) << 32) + u64::from(timestamp_low),
             captured_len,
             packet_len: B::read_u32(&buf[16..20]),
-            packet_data: &buf[20..20 + captured_len as usize],
+            packet_data: 20..20 + captured_len as usize,
             options: &buf[20 + captured_len as usize..],
         }
     }
@@ -344,7 +306,7 @@ impl<'a> FromBytes<'a> for EnhancedPacket<'a> {
 ///
 /// [1]: https://github.com/pcapng/pcapng
 #[derive(Clone, PartialEq, Debug)]
-pub struct SimplePacket<'a> {
+pub struct SimplePacket {
     /// Actual length of the packet when it was transmitted on the network. It can be different
     /// from length of the Packet Data field's length if the packet has been truncated by the
     /// capture process, in which case the SnapLen value in Section 4.2 will be less than this
@@ -358,15 +320,15 @@ pub struct SimplePacket<'a> {
     /// Data field depends on the LinkType field specified in the Interface Description Block (see
     /// Section 4.2) and it is specified in the entry for that format in the tcpdump.org link-layer
     /// header types registry.
-    pub packet_data: &'a [u8],
+    pub packet_data: Range<usize>,
 }
 
-impl<'a> FromBytes<'a> for SimplePacket<'a> {
+impl<'a> FromBytes<'a> for SimplePacket {
     fn parse<B: ByteOrder>(buf: &[u8]) -> SimplePacket {
         let packet_len = B::read_u32(&buf[0..4]);
         SimplePacket {
             packet_len,
-            packet_data: &buf[4..4 + packet_len as usize],
+            packet_data: 4..4 + packet_len as usize,
         }
     }
 }
@@ -430,7 +392,7 @@ impl<'a> FromBytes<'a> for NameResolution {
 ///
 /// [1]: https://github.com/pcapng/pcapng
 #[derive(Clone, PartialEq, Debug)]
-pub struct InterfaceStatistics {
+pub struct InterfaceStatistics<'a> {
     /// Specifies the interface these statistics refers to; the correct interface will be the one
     /// whose Interface Description Block (within the current Section of the file) is identified by
     /// same number (see Section 4.2) of this field.
@@ -441,16 +403,16 @@ pub struct InterfaceStatistics {
     pub timestamp_low: u32,
     /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
     /// be present.
-    pub options: Vec<u8>,
+    pub options: &'a [u8],
 }
 
-impl<'a> FromBytes<'a> for InterfaceStatistics {
-    fn parse<B: ByteOrder>(buf: &[u8]) -> InterfaceStatistics {
+impl<'a> FromBytes<'a> for InterfaceStatistics<'a> {
+    fn parse<B: ByteOrder>(buf: &'a [u8]) -> InterfaceStatistics<'a> {
         InterfaceStatistics {
             interface_id: InterfaceId(B::read_u32(&buf[0..4])),
             timestamp_high: B::read_u32(&buf[4..8]),
             timestamp_low: B::read_u32(&buf[8..12]),
-            options: Vec::from(&buf[12..]),
+            options: &buf[12..],
         }
     }
 }
@@ -496,14 +458,14 @@ pub struct ObsoletePacket<'a> {
     /// link-layer headers depends on the LinkType field specified in the Interface Description
     /// Block (see Section 4.2) and it is specified in the entry for that format in the the
     /// tcpdump.org link-layer header types registry.
-    pub packet_data: &'a [u8],
+    pub packet_data: Range<usize>,
     /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
     /// be present.
     pub options: &'a [u8],
 }
 
 impl<'a> FromBytes<'a> for ObsoletePacket<'a> {
-    fn parse<B: ByteOrder>(buf: &[u8]) -> ObsoletePacket {
+    fn parse<B: ByteOrder>(buf: &'a [u8]) -> ObsoletePacket<'a> {
         let captured_len = B::read_u32(&buf[12..16]);
         let timestamp_high = B::read_u32(&buf[4..8]);
         let timestamp_low = B::read_u32(&buf[8..12]);
@@ -513,7 +475,7 @@ impl<'a> FromBytes<'a> for ObsoletePacket<'a> {
             timestamp: (u64::from(timestamp_high) << 4) + u64::from(timestamp_low),
             captured_len,
             packet_len: B::read_u32(&buf[16..20]),
-            packet_data: &buf[20..20 + captured_len as usize],
+            packet_data: 20..20 + captured_len as usize,
             options: &buf[20 + captured_len as usize..],
         }
     }
