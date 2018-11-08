@@ -7,6 +7,9 @@ license = "Unlicense"
 exclude = ["integration_tests/*"]
 categories = ["encoding", "network-programming"]
 keywords = ["pcap", "pcapng", "pcap-ng"]
+readme = "README.md"
+documentation = "https://docs.rs/pcarp"
+respository = "https://github.com/asayers/pcarp"
 
 [dependencies]
 buf_redux = "0.7"
