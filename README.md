@@ -11,7 +11,7 @@ A pure-Rust library for reading pcap-ng files.
   it's fair to say they're similar.
 * _Flexible_:  The input can be anything which implements `Read` as input.  Are
   your pcaps compressed?  No problem, just wrap your `File` in a
-  [`GzDecoder`][2] before you pass it to `Pcapng::new`.
+  [`GzDecoder`][2] before you pass it to `Capture::new`.
 * _Flexible_ (again):  The output API is streaming-iterator-style  (`advance`
   and `get`), which is more general than iterator-style (`next`) when the
   content is borrowed.

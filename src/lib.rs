@@ -16,18 +16,18 @@ Limitations compared to `libpcap`:
 [pnet]: https://docs.rs/pnet
 [rshark]: https://docs.rs/rshark
 
-The entry point is [`Pcapng`](struct.Pcapng.html).
+The entry point is [`Capture`](struct.Capture.html).
 
 ## Example
 
 ```
-# use pcarp::Pcapng;
+# use pcarp::Capture;
 # use std::time::*;
 # use std::io::*;
 # use std::fs::File;
 let file = File::open("integration_tests/10_sqldeveloper10_2016.pcapng.xz").unwrap();
 let uncompressed = xz2::read::XzDecoder::new(file);
-let mut pcap = Pcapng::new(uncompressed).unwrap();
+let mut pcap = Capture::new(uncompressed).unwrap();
 while let Some(pkt) = pcap.next() {
     let pkt = pkt.unwrap();
     let ts = pkt.timestamp.unwrap_or(UNIX_EPOCH);
@@ -58,8 +58,8 @@ pub use types::{Error, Interface, LinkType, Packet};
 
 const BUF_CAPACITY: usize = 10_000_000;
 
-/// A capture which can be iterated over.
-pub struct Pcapng<R> {
+/// A packet capture which can be iterated over.
+pub struct Capture<R> {
     rdr: BufReader<R, MinBuffered>,
     finished: bool,
 
@@ -80,17 +80,17 @@ pub struct Pcapng<R> {
 
 const DEFAULT_MIN_BUFFERED: usize = 8 * 1024; // 8KB
 
-impl<R: Read> Pcapng<R> {
-    /// Create a new `Pcapng`.
-    pub fn new(rdr: R) -> Result<Pcapng<R>> {
+impl<R: Read> Capture<R> {
+    /// Create a new `Capture`.
+    pub fn new(rdr: R) -> Result<Capture<R>> {
         Self::with_capacity(rdr, BUF_CAPACITY)
     }
 
-    fn with_capacity(rdr: R, cap: usize) -> Result<Pcapng<R>> {
+    fn with_capacity(rdr: R, cap: usize) -> Result<Capture<R>> {
         let mut rdr =
             BufReader::with_capacity(cap, rdr).set_policy(MinBuffered(DEFAULT_MIN_BUFFERED));
         let endianness = peek_for_shb(rdr.fill_buf()?)?.ok_or(Error::DidntStartWithSHB)?;
-        Ok(Pcapng {
+        Ok(Capture {
             rdr,
             finished: false,
 

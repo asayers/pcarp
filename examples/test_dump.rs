@@ -7,7 +7,7 @@ use pcarp::*;
 fn main() {
     let path = std::path::PathBuf::from(std::env::args().nth(1).unwrap());
     let file = std::fs::File::open(&path).unwrap();
-    let mut pcap = Pcapng::new(xz2::read::XzDecoder::new(file)).unwrap();
+    let mut pcap = Capture::new(xz2::read::XzDecoder::new(file)).unwrap();
     while let Some(pkt) = pcap.next() {
         let pkt = pkt.unwrap();
         let ts = pkt

@@ -42,7 +42,7 @@ fn main() {
             Box::new(file)
         }
     };
-    let mut pcap = Pcapng::new(reader).unwrap();
+    let mut pcap = Capture::new(reader).unwrap();
 
     let start = Instant::now();
     let mut n = 0;
