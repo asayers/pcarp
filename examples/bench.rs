@@ -36,6 +36,7 @@ fn main() {
     assert_eq!(n1, n2);
     assert_eq!(bytes1, bytes2);
 
-    let x = 2.0 * (t1.subsec_nanos() as f64 - t2.subsec_nanos() as f64) / (t1.subsec_nanos() + t2.subsec_nanos()) as f64;
+    let x = 2.0 * (t1.subsec_nanos() as f64 - t2.subsec_nanos() as f64)
+        / (t1.subsec_nanos() + t2.subsec_nanos()) as f64;
     println!("{}", x);
 }

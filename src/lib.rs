@@ -28,7 +28,6 @@ extern crate byteorder;
 extern crate log;
 #[macro_use]
 extern crate failure;
-extern crate num_traits;
 
 pub mod block;
 mod types;
@@ -102,7 +101,7 @@ impl<R: Read> Pcapng<R> {
         }
     }
 
-    pub fn advance<'a>(&'a mut self) -> Result<()> {
+    pub fn advance(&mut self) -> Result<()> {
         loop {
             // Look at the length of the _last_ block, to see how much data to discard
             self.rdr.consume(self.last_block_len);
@@ -144,8 +143,8 @@ impl<R: Read> Pcapng<R> {
                         );
                     }
                     let iface = match self.endianness {
-                        Endianness::Big => Interface::from_desc::<BigEndian>(desc),
-                        Endianness::Little => Interface::from_desc::<LittleEndian>(desc),
+                        Endianness::Big => Interface::from_desc::<BigEndian>(&desc),
+                        Endianness::Little => Interface::from_desc::<LittleEndian>(&desc),
                     };
                     info!("Parsed: {:?}", iface);
                     self.interfaces.push(iface);
@@ -191,8 +190,10 @@ impl<R: Read> Pcapng<R> {
         }
     }
 
-    pub fn get<'a>(&'a self) -> Option<Packet<'a>> {
-        if self.finished { return None; }
+    pub fn get(&self) -> Option<Packet> {
+        if self.finished {
+            return None;
+        }
         let interface = self.current_interface.map(|x| self.lookup_interface(x));
         let timestamp = self.current_interface.and_then(|i| {
             self.current_timestamp

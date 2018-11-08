@@ -326,7 +326,7 @@ pub struct Interface {
 }
 
 impl Interface {
-    pub fn from_desc<B: ByteOrder>(desc: InterfaceDescription) -> Interface {
+    pub fn from_desc<B: ByteOrder>(desc: &InterfaceDescription) -> Interface {
         let mut units_per_sec = 1_000_000;
         let mut i = 0;
         loop {

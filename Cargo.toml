@@ -10,8 +10,6 @@ buf_redux = "0.7"
 byteorder = "1.0"
 failure = "0.1"
 log = "0.4"
-num-derive = "0.2"
-num-traits = "0.2"
 
 [dev-dependencies]
 clap = "2.32"

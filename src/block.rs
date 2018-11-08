@@ -143,7 +143,7 @@ pub struct SectionHeader<'a> {
 }
 
 impl<'a> FromBytes<'a> for SectionHeader<'a> {
-    fn parse<B: ByteOrder + KnownByteOrder>(buf: &'a[u8]) -> SectionHeader<'a> {
+    fn parse<B: ByteOrder + KnownByteOrder>(buf: &'a [u8]) -> SectionHeader<'a> {
         SectionHeader {
             endianness: B::endianness(),
             major_version: B::read_u16(&buf[4..6]),
