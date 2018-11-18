@@ -126,7 +126,7 @@ impl<R: Read> Capture<R> {
 
             // We might have a new section coming up; in which case, change endianness.
             if let Some(endianness) = peek_for_shb(buf)? {
-                debug!("Found SHB; setting endianness to {:?}", endianness);
+                trace!("Found SHB; setting endianness to {:?}", endianness);
                 self.endianness = endianness;
             }
 
@@ -139,13 +139,13 @@ impl<R: Read> Capture<R> {
 
             match block {
                 Block::SectionHeader(x) => {
-                    info!("Starting a new section: {:?}", x);
+                    debug!("Starting a new section: {:?}", x);
                     assert_eq!(self.endianness, x.endianness);
                     self.interfaces.clear();
                     self.resolved_names.clear();
                 }
                 Block::InterfaceDescription(desc) => {
-                    info!("Defined a new interface: {:?}", desc);
+                    debug!("Defined a new interface: {:?}", desc);
                     if desc.snap_len > BUF_CAPACITY as u32 {
                         warn!(
                             "The max packet length for this interface is greater than the length of
@@ -156,36 +156,36 @@ impl<R: Read> Capture<R> {
                         Endianness::Big => Interface::from_desc::<BigEndian>(&desc),
                         Endianness::Little => Interface::from_desc::<LittleEndian>(&desc),
                     };
-                    info!("Parsed: {:?}", iface);
+                    debug!("Parsed: {:?}", iface);
                     self.interfaces.push(iface);
                 }
                 Block::EnhancedPacket(pkt) => {
-                    debug!("Got a packet: {:?}", pkt);
+                    trace!("Got a packet: {:?}", pkt);
                     self.current_timestamp = Some(pkt.timestamp);
                     self.current_interface = Some(pkt.interface_id);
                     self.current_data = pkt.packet_data;
                     return Ok(());
                 }
                 Block::SimplePacket(pkt) => {
-                    debug!("Got a packet: {:?}", pkt);
+                    trace!("Got a packet: {:?}", pkt);
                     self.current_timestamp = None;
                     self.current_interface = None;
                     self.current_data = pkt.packet_data;
                     return Ok(());
                 }
                 Block::ObsoletePacket(pkt) => {
-                    debug!("Got a packet: {:?}", pkt);
+                    trace!("Got a packet: {:?}", pkt);
                     self.current_timestamp = Some(pkt.timestamp);
                     self.current_interface = Some(pkt.interface_id);
                     self.current_data = pkt.packet_data;
                     return Ok(());
                 }
                 Block::NameResolution(x) => {
-                    info!("Defined a new resolved name: {:?}", x);
+                    debug!("Defined a new resolved name: {:?}", x);
                     self.resolved_names.push(x.clone());
                 }
                 Block::InterfaceStatistics(x) => {
-                    info!("Got some interface statistics: {:?}", x);
+                    debug!("Got some interface statistics: {:?}", x);
                 }
                 Block::IRIGTimestamp => {
                     warn!("IRIG timestamp blocks are ignored");

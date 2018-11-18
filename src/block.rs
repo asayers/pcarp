@@ -38,7 +38,7 @@ impl<'a> Block<'a> {
         let block_type = B::read_u32(&buf[..4]);
         let block_length = B::read_u32(&buf[4..8]) as usize;
         require_bytes(buf, block_length)?;
-        debug!(
+        trace!(
             "Got a complete block: type {:x}, len {}",
             block_type, block_length
         );
