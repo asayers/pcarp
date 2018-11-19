@@ -50,7 +50,7 @@ use block::*;
 use buf_redux::policy::MinBuffered;
 use buf_redux::BufReader;
 use byteorder::{BigEndian, LittleEndian};
-use std::io::{BufRead, Read};
+use std::io::{BufRead, Read, Seek, SeekFrom};
 use std::ops::Range;
 use std::time::*;
 use types::*;
@@ -227,6 +227,22 @@ impl<R: Read> Capture<R> {
         let secs = timestamp / units_per_sec;
         let nanos = ((timestamp % units_per_sec) * 1_000_000_000 / units_per_sec) as u32;
         SystemTime::UNIX_EPOCH + Duration::new(secs, nanos)
+    }
+}
+
+impl<R: Read + Seek> Capture<R> {
+    /// Rewind to the beginning of the pcapng file
+    pub fn rewind(&mut self) -> Result<()> {
+        self.rdr.seek(SeekFrom::Start(0))?;
+        self.finished = false;
+        self.endianness = peek_for_shb(self.rdr.fill_buf()?)?.ok_or(Error::DidntStartWithSHB)?;
+        self.interfaces = Vec::new();
+        self.resolved_names = Vec::new();
+        self.last_block_len = 0;
+        self.current_timestamp = None;
+        self.current_interface = None;
+        self.current_data = 0..0;
+        Ok(())
     }
 }
 
