@@ -46,15 +46,15 @@ extern crate failure;
 pub mod block;
 mod types;
 
-use block::*;
+use crate::block::*;
 use buf_redux::policy::MinBuffered;
 use buf_redux::BufReader;
 use byteorder::{BigEndian, LittleEndian};
 use std::io::{BufRead, Read, Seek, SeekFrom};
 use std::ops::Range;
 use std::time::*;
-use types::*;
-pub use types::{Error, Interface, LinkType, Packet};
+use crate::types::*;
+pub use crate::types::{Error, Interface, LinkType, Packet};
 
 const BUF_CAPACITY: usize = 10_000_000;
 const DEFAULT_MIN_BUFFERED: usize = 8 * 1024; // 8KB

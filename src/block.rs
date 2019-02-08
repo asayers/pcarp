@@ -16,7 +16,7 @@ Trust and the persons identified as the authors of the linked document. All righ
 
 use byteorder::ByteOrder;
 use std::ops::Range;
-use types::*;
+use crate::types::*;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Block<'a> {

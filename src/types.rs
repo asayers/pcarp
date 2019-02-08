@@ -1,4 +1,4 @@
-use block::*;
+use crate::block::*;
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use std::io;
 use std::result;
