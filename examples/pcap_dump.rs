@@ -26,33 +26,49 @@ fn main() {
 
     let path = PathBuf::from(args.value_of("pcap").unwrap());
     let file = File::open(&path).unwrap();
-    let reader: Box<Read> = match path.extension().unwrap().to_str().unwrap() {
-        "pcapng" => Box::new(file),
-        "gz" => Box::new(flate2::read::GzDecoder::new(file)),
-        "xz" => Box::new(xz2::read::XzDecoder::new(file)),
-        x => {
+    let reader: Box<Read> = match path.extension().and_then(|x| x.to_str()) {
+        Some("pcapng") => Box::new(file),
+        Some("gz") => Box::new(flate2::read::GzDecoder::new(file)),
+        Some("xz") => Box::new(xz2::read::XzDecoder::new(file)),
+        Some(x) => {
             warn!("Didn't recognise file extension {}; assuming plain pcap", x);
             Box::new(file)
         }
+        None => {
+            warn!("No file extension; assuming plain pcap");
+            Box::new(file)
+        }
     };
-    let mut pcap = Capture::new(reader).unwrap();
+    let mut pcap = match Capture::new(reader) {
+        Ok(x) => x,
+        Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+    };
 
     let start = Instant::now();
     let mut n = 0;
     while let Some(pkt) = pcap.next() {
-        let pkt = pkt.unwrap();
-        n += 1;
-        let ts = pkt.timestamp.unwrap_or(SystemTime::UNIX_EPOCH);
-        println!(
-            "[{}] {:>5}  {}",
-            humantime::format_rfc3339_nanos(ts),
-            pkt.data.len(),
-            sanitize(pkt.data)
-        );
-        if n % 1000 == 0 {
-            let nanos = start.elapsed().subsec_nanos();
-            let bps = f64::from(n) * 1_000_000_000.0 / f64::from(nanos);
-            info!("Read {} blocks at {} pps", n, bps);
+        match pkt {
+            Ok(pkt) => {
+                n += 1;
+                let ts = pkt.timestamp.unwrap_or(SystemTime::UNIX_EPOCH);
+                println!(
+                    "[{}] {:>5}  {}",
+                    humantime::format_rfc3339_nanos(ts),
+                    pkt.data.len(),
+                    sanitize(pkt.data)
+                );
+                if n % 1000 == 0 {
+                    let nanos = start.elapsed().subsec_nanos();
+                    let bps = f64::from(n) * 1_000_000_000.0 / f64::from(nanos);
+                    info!("Read {} blocks at {} pps", n, bps);
+                }
+            }
+            Err(e) => {
+                eprintln!("{}", e);
+            }
         }
     }
 }
