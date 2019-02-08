@@ -1,6 +1,6 @@
 [package]
 name = "pcarp"
-version = "0.3.0"
+version = "1.0.0"
 authors = ["Alex Sayers <alex@asayers.com>", "Mitsutoshi Aoe <maoe@foldr.in>"]
 description = "A pure-Rust library for reading pcap-ng files"
 license = "Unlicense"
