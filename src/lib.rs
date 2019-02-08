@@ -101,6 +101,7 @@ impl<R: Read> Capture<R> {
     }
 
     /// Get the next packet
+    #[allow(clippy::should_implement_trait)]
     pub fn next<'a, 'b>(&'a mut self) -> Option<Result<Packet<'b>>>
     where
         'a: 'b,
