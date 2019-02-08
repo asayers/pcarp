@@ -10,6 +10,7 @@ keywords = ["pcap", "pcapng", "pcap-ng"]
 readme = "README.md"
 documentation = "https://docs.rs/pcarp"
 repository = "https://github.com/asayers/pcarp"
+edition = "2018"
 
 [dependencies]
 buf_redux = "0.7"
