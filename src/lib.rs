@@ -5,6 +5,7 @@ pcarp is pure-Rust library for reading pcap-ng files.
 * _Fast_:  Performance is comparable to `libpcap`, although YMMV.
 * _Flexible_:  Takes anything which implements `Read`;  returns packets with a
   streaming-iterator-style API.
+* _Reliable_: No panics, even on malformed input;  well-fuzzed.
 
 Limitations compared to `libpcap`:
 
@@ -30,8 +31,7 @@ let uncompressed = xz2::read::XzDecoder::new(file);
 let mut pcap = Capture::new(uncompressed).unwrap();
 while let Some(pkt) = pcap.next() {
     let pkt = pkt.unwrap();
-    let ts = pkt.timestamp.unwrap_or(UNIX_EPOCH);
-    println!("[{:?}] Packet with length {}", ts, pkt.data.len());
+    println!("{:?} {}", pkt.timestamp, pkt.data.len());
 }
 ```
 */
@@ -127,10 +127,11 @@ impl<R: Read> Capture<R> {
 
             // Parse the next block, and update the interface description map etc. if necessary.
             let (len, block) = match self.endianness {
-                Endianness::Big => Block::parse::<BigEndian>(buf)?,
-                Endianness::Little => Block::parse::<LittleEndian>(buf)?,
+                Endianness::Big => Block::parse::<BigEndian>(buf),
+                Endianness::Little => Block::parse::<LittleEndian>(buf),
             };
             self.last_block_len = len;
+            let block = block?;
 
             match block {
                 Block::SectionHeader(x) => {
@@ -148,8 +149,8 @@ impl<R: Read> Capture<R> {
                         );
                     }
                     let iface = match self.endianness {
-                        Endianness::Big => Interface::from_desc::<BigEndian>(&desc),
-                        Endianness::Little => Interface::from_desc::<LittleEndian>(&desc),
+                        Endianness::Big => Interface::from_desc::<BigEndian>(&desc)?,
+                        Endianness::Little => Interface::from_desc::<LittleEndian>(&desc)?,
                     };
                     debug!("Parsed: {:?}", iface);
                     self.interfaces.push(iface);
@@ -157,7 +158,11 @@ impl<R: Read> Capture<R> {
                 Block::EnhancedPacket(pkt) => {
                     trace!("Got a packet: {:?}", pkt);
                     self.current_timestamp = Some(pkt.timestamp);
-                    self.current_interface = Some(pkt.interface_id);
+                    if self.interfaces.len() > pkt.interface_id.0 as usize {
+                        self.current_interface = Some(pkt.interface_id);
+                    } else {
+                        error!("Refusing to switch to an unknown interface");
+                    }
                     self.current_data = pkt.packet_data;
                     return Ok(());
                 }
@@ -171,7 +176,11 @@ impl<R: Read> Capture<R> {
                 Block::ObsoletePacket(pkt) => {
                     trace!("Got a packet: {:?}", pkt);
                     self.current_timestamp = Some(pkt.timestamp);
-                    self.current_interface = Some(pkt.interface_id);
+                    if self.interfaces.len() > pkt.interface_id.0 as usize {
+                        self.current_interface = Some(pkt.interface_id);
+                    } else {
+                        error!("Refusing to switch to an unknown interface");
+                    }
                     self.current_data = pkt.packet_data;
                     return Ok(());
                 }

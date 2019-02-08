@@ -15,6 +15,16 @@ pub enum Error {
     NotEnoughBytes { expected: usize, actual: usize },
     #[fail(display = "Section didn't start with an SHB")]
     DidntStartWithSHB,
+    #[fail(display = "Block's start and end lengths don't match")]
+    BlockLengthMismatch,
+    #[fail(display = "Block length must be at least 12 bytes")]
+    BlockLengthTooShort,
+    #[fail(display = "option_len for if_tsresol should be 1 but got {}", _0)]
+    WrongOptionLen(usize),
+    #[fail(display = "There were more options after an option with type 0")]
+    OptionsAfterEnd,
+    #[fail(display = "This timestamp resolution won't fit into a u32")]
+    ResolutionTooHigh,
     #[fail(display = "IO error: {}", _0)]
     IO(#[cause] io::Error),
 }
@@ -304,7 +314,7 @@ impl KnownByteOrder for LittleEndian {
 pub struct InterfaceId(pub u32);
 
 pub trait FromBytes<'a>: Sized {
-    fn parse<B: ByteOrder + KnownByteOrder>(buf: &'a [u8]) -> Self;
+    fn parse<B: ByteOrder + KnownByteOrder>(buf: &'a [u8]) -> Result<Self>;
 }
 
 pub fn require_bytes(buf: &[u8], len: usize) -> Result<()> {
@@ -333,7 +343,7 @@ pub struct Interface {
 }
 
 impl Interface {
-    pub(crate) fn from_desc<B: ByteOrder>(desc: &InterfaceDescription) -> Interface {
+    pub(crate) fn from_desc<B: ByteOrder>(desc: &InterfaceDescription) -> Result<Interface> {
         let mut units_per_sec = 1_000_000;
         let mut i = 0;
         loop {
@@ -348,21 +358,27 @@ impl Interface {
             match option_type {
                 0 => {
                     // end of options
-                    assert!(i == desc.options.len());
+                    if i != desc.options.len() {
+                        return Err(Error::OptionsAfterEnd);
+                    }
                     break;
                 }
                 9 => {
                     // if_tsresol
-                    assert!(
-                        option_len == 1,
-                        "option_len for if_tsresol should be 1 but got {}",
-                        option_len
-                    );
+                    if option_len != 1 {
+                        return Err(Error::WrongOptionLen(option_len));
+                    }
                     let v = desc.options[i];
                     let exp = u32::from(v & 0b0111_1111);
                     match v >> 7 {
-                        0 => units_per_sec = 10_u32.pow(exp),
-                        1 => units_per_sec = 2_u32.pow(exp),
+                        0 => {
+                            units_per_sec =
+                                checked_pow(10_u32, exp).ok_or(Error::ResolutionTooHigh)?
+                        }
+                        1 => {
+                            units_per_sec =
+                                checked_pow(2_u32, exp).ok_or(Error::ResolutionTooHigh)?
+                        }
                         _ => { /* impossible */ }
                     }
                 }
@@ -371,9 +387,32 @@ impl Interface {
             let padding_len = (4 - option_len % 4) % 4;
             i += option_len + padding_len;
         }
-        Interface {
+        Ok(Interface {
             link_type: desc.link_type,
             units_per_sec,
-        }
+        })
     }
+}
+
+// TODO: Remove this when `checked_pow` lands in stable
+#[inline]
+pub fn checked_pow(mut base: u32, mut exp: u32) -> Option<u32> {
+    let mut acc: u32 = 1;
+
+    while exp > 1 {
+        if (exp & 1) == 1 {
+            acc = acc.checked_mul(base)?;
+        }
+        exp /= 2;
+        base = base.checked_mul(base)?;
+    }
+
+    // Deal with the final bit of the exponent separately, since
+    // squaring the base afterwards is not necessary and may cause a
+    // needless overflow.
+    if exp == 1 {
+        acc = acc.checked_mul(base)?;
+    }
+
+    Some(acc)
 }
