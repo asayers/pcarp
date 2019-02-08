@@ -21,7 +21,8 @@ fn main() {
         .args_from_usage(
             "<pcap>  'The pcapng file to read from'
              --verbose -v 'Enable verbose output'",
-        ).get_matches();
+        )
+        .get_matches();
 
     // Initialise the logger
     let log_level = if args.is_present("verbose") {

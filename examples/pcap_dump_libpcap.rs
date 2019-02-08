@@ -15,7 +15,8 @@ fn main() {
         .args_from_usage(
             "<pcap>  'The pcapng file to read from'
              [verbosity]... -v 'Sets the level of verbosity'",
-        ).get_matches();
+        )
+        .get_matches();
 
     // Initialise the logger
     let log_level = log_level_from_int(args.occurrences_of("verbosity"));

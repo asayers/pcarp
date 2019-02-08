@@ -14,9 +14,9 @@ Trust and the persons identified as the authors of the linked document. All righ
 [the pcap-ng spec]: https://github.com/pcapng/pcapng
 */
 
+use crate::types::*;
 use byteorder::ByteOrder;
 use std::ops::Range;
-use crate::types::*;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Block<'a> {
@@ -40,7 +40,8 @@ impl<'a> Block<'a> {
         require_bytes(buf, block_length)?;
         trace!(
             "Got a complete block: type {:x}, len {}",
-            block_type, block_length
+            block_type,
+            block_length
         );
         let body = &buf[8..block_length - 4];
         let block_length_2 = B::read_u32(&buf[block_length - 4..block_length]) as usize;
