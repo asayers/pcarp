@@ -1,10 +1,5 @@
-extern crate clap;
-extern crate env_logger;
-#[macro_use]
-extern crate log;
-extern crate pcap;
-
 use clap::App;
+use log::*;
 use pcap::*;
 use std::time::*;
 

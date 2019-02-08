@@ -1,13 +1,5 @@
-extern crate clap;
-extern crate env_logger;
-#[macro_use]
-extern crate log;
-extern crate flate2;
-extern crate humantime;
-extern crate pcarp;
-extern crate xz2;
-
 use clap::App;
+use log::*;
 use pcarp::*;
 use std::fs::File;
 use std::io::Read;

@@ -36,13 +36,6 @@ while let Some(pkt) = pcap.next() {
 ```
 */
 
-extern crate buf_redux;
-extern crate byteorder;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate failure;
-
 pub mod block;
 mod types;
 
@@ -52,6 +45,7 @@ pub use crate::types::{Error, Interface, LinkType, Packet};
 use buf_redux::policy::MinBuffered;
 use buf_redux::BufReader;
 use byteorder::{BigEndian, LittleEndian};
+use log::*;
 use std::io::{BufRead, Read, Seek, SeekFrom};
 use std::ops::Range;
 use std::time::*;

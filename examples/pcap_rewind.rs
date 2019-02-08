@@ -1,6 +1,3 @@
-extern crate clap;
-extern crate pcarp;
-
 use clap::App;
 use pcarp::*;
 use std::fs::File;

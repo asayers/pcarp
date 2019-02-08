@@ -1,6 +1,3 @@
-extern crate pcap;
-extern crate pcarp;
-
 use std::time::*;
 
 fn main() {

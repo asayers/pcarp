@@ -1,7 +1,3 @@
-extern crate pcarp;
-extern crate sha1;
-extern crate xz2;
-
 use pcarp::*;
 
 fn main() {

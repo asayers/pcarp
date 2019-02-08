@@ -1,5 +1,6 @@
 use crate::block::*;
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
+use failure::Fail;
 use std::io;
 use std::result;
 use std::time::SystemTime;

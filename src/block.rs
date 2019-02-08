@@ -16,6 +16,7 @@ Trust and the persons identified as the authors of the linked document. All righ
 
 use crate::types::*;
 use byteorder::ByteOrder;
+use log::*;
 use std::ops::Range;
 
 #[derive(Clone, PartialEq, Debug)]
