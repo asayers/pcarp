@@ -1,21 +1,13 @@
 /*!
-pcarp is pure-Rust library for reading pcap-ng files.
+pcarp is a pure-Rust library for reading pcap-ng files.
 
 * _Correct_:  Agrees with `tshark` across a broad test suite.
-* _Fast_:  Performance is comparable to `libpcap`, although YMMV.
-* _Flexible_:  Takes anything which implements `Read`;  returns packets with a
-  streaming-iterator-style API.
-* _Reliable_: No panics, even on malformed input;  well-fuzzed.
+* _Fast_:  Zero-copy.  Performance is comparable to `libpcap`.
+* _Flexible input_:  Takes anything which implements `Read`.
+* _Flexible output_: exposes a streaming-iterator-style API.
+* _Reliable_: No panics, even on malformed input.
 
-Limitations compared to `libpcap`:
-
-* No support for legacy pcap;  `pcarp` is pcap-ng-only.
-* No dissection of any kind.  `pcarp` gives you the raw packet data.  If you want to parse
-  ethernet/IP/TCP/whatever protocol, try [pnet] or [rshark].
-* No filtering.  This one follows from "no dissection".
-
-[pnet]: https://docs.rs/pnet
-[rshark]: https://docs.rs/rshark
+See the README for more details.
 
 The entry point is [`Capture`](struct.Capture.html).
 
@@ -29,6 +21,7 @@ The entry point is [`Capture`](struct.Capture.html).
 let file = File::open("integration_tests/10_sqldeveloper10_2016.pcapng.xz").unwrap();
 let uncompressed = xz2::read::XzDecoder::new(file);
 let mut pcap = Capture::new(uncompressed).unwrap();
+
 while let Some(pkt) = pcap.next() {
     let pkt = pkt.unwrap();
     println!("{:?} {}", pkt.timestamp, pkt.data.len());
@@ -94,7 +87,13 @@ impl<R: Read> Capture<R> {
         })
     }
 
-    /// Get the next packet
+    /// Get the next packet.
+    ///
+    /// This function is just a convenient wrapper around the lower-level API:
+    /// it simply calls `advance()` followed by `get()`.  It's expected
+    /// that most users will just use `next()`, but that users needing to
+    /// work around lifetime contraints will need to use `advance/get`.
+    /// Nothing bad will happen if you mix these two APIs.
     #[allow(clippy::should_implement_trait)]
     pub fn next<'a, 'b>(&'a mut self) -> Option<Result<Packet<'b>>>
     where
@@ -106,6 +105,10 @@ impl<R: Read> Capture<R> {
         }
     }
 
+    /// Parse the next packet from the pcap file.
+    ///
+    /// This function parses the packet but doesn't return it.  Use `peek()`
+    /// to see the results.
     pub fn advance(&mut self) -> Result<()> {
         loop {
             // Look at the length of the _last_ block, to see how much data to discard
@@ -204,6 +207,11 @@ impl<R: Read> Capture<R> {
         }
     }
 
+    /// Peek the current packet.
+    ///
+    /// This function is cheap, since `Packet` holds a reference to the
+    /// internal buffer and no pcap data is copied.  When you're done with
+    /// this packet and want to see the next one, use `advance()` to move on.
     pub fn get(&self) -> Option<Packet> {
         if self.finished {
             return None;
