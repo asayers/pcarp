@@ -28,6 +28,7 @@ A pure-Rust library for reading pcap-ng files.
 Limitations compared to `libpcap`:
 
 * No support for legacy pcap;  `pcarp` is pcap-ng-only.
+* No support for writing; `pcarp` is read-only.
 * No dissection of any kind.  `pcarp` gives you the raw packet data.
   If you want to parse ethernet/IP/TCP/whatever protocol, try [pnet] or
   [rshark].
