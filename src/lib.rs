@@ -107,7 +107,7 @@ impl<R: Read> Capture<R> {
 
     /// Parse the next packet from the pcap file.
     ///
-    /// This function parses the packet but doesn't return it.  Use `peek()`
+    /// This function parses the packet but doesn't return it.  Use `get()`
     /// to see the results.
     pub fn advance(&mut self) -> Result<()> {
         loop {
