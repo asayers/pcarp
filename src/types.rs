@@ -1,32 +1,53 @@
 use crate::block::*;
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
-use failure::Fail;
+use std::fmt;
 use std::io;
 use std::result;
 use std::time::SystemTime;
 
 pub type Result<T> = result::Result<T, Error>;
 
-#[derive(Debug, Fail)]
+#[derive(Debug)]
 pub enum Error {
-    #[fail(display = "Didn't understand magic number {:?}", _0)]
     DidntUnderstandMagicNumber([u8; 4]),
-    #[fail(display = "Not enough bytes (expected {}, saw {})", _0, _1)]
     NotEnoughBytes { expected: usize, actual: usize },
-    #[fail(display = "Section didn't start with an SHB")]
     DidntStartWithSHB,
-    #[fail(display = "Block's start and end lengths don't match")]
     BlockLengthMismatch,
-    #[fail(display = "Block length must be at least 12 bytes")]
     BlockLengthTooShort,
-    #[fail(display = "option_len for if_tsresol should be 1 but got {}", _0)]
     WrongOptionLen(usize),
-    #[fail(display = "There were more options after an option with type 0")]
     OptionsAfterEnd,
-    #[fail(display = "This timestamp resolution won't fit into a u32")]
     ResolutionTooHigh,
-    #[fail(display = "IO error: {}", _0)]
-    IO(#[cause] io::Error),
+    IO(io::Error),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Error::*;
+        match self {
+            DidntUnderstandMagicNumber(x) => write!(f, "Didn't understand magic number {:?}", x),
+            NotEnoughBytes { expected, actual } => write!(
+                f,
+                "Not enough bytes (expected {}, saw {})",
+                expected, actual
+            ),
+            DidntStartWithSHB => write!(f, "Section didn't start with an SHB"),
+            BlockLengthMismatch => write!(f, "Block's start and end lengths don't match"),
+            BlockLengthTooShort => write!(f, "Block length must be at least 12 bytes"),
+            WrongOptionLen(x) => write!(f, "option_len for if_tsresol should be 1 but got {}", x),
+            OptionsAfterEnd => write!(f, "There were more options after an option with type 0"),
+            ResolutionTooHigh => write!(f, "This timestamp resolution won't fit into a u32"),
+            IO(x) => write!(f, "IO error: {}", x),
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::IO(ref x) => Some(x),
+            _ => None,
+        }
+    }
 }
 
 impl From<io::Error> for Error {
