@@ -47,6 +47,16 @@ const BUF_CAPACITY: usize = 10_000_000;
 const DEFAULT_MIN_BUFFERED: usize = 8 * 1024; // 8KB
 
 /// A packet capture which can be iterated over.
+///
+/// There are two APIs here:
+///
+/// * Iterator style: `next`
+/// * Streaming-iterator style: `advance`/`get`
+///
+/// The streaming iterator API is slightly more general when the items are
+/// borrowed.  I expect that most users will just use `next()`, but users
+/// needing to work around lifetime contraints may need to use `advance/get`.
+/// Nothing bad will happen if you mix these two APIs.
 pub struct Capture<R> {
     rdr: BufReader<R, MinBuffered>,
     finished: bool,
@@ -89,11 +99,8 @@ impl<R: Read> Capture<R> {
 
     /// Get the next packet.
     ///
-    /// This function is just a convenient wrapper around the lower-level API:
-    /// it simply calls `advance()` followed by `get()`.  It's expected
-    /// that most users will just use `next()`, but that users needing to
-    /// work around lifetime contraints will need to use `advance/get`.
-    /// Nothing bad will happen if you mix these two APIs.
+    /// This function is a wrapper around the lower-level API:
+    /// it simply calls `advance()` then `get()`.
     #[allow(clippy::should_implement_trait)]
     pub fn next<'a, 'b>(&'a mut self) -> Option<Result<Packet<'b>>>
     where
