@@ -1,15 +1,15 @@
-/*! Block definitions.  Not meant for consumption.
+/*! **[Internal]** Block definitions.
 
-> **Standard caveat**: Internals are exposed for the sake of interest only.
-> The API may change in a patch bump.
-> The user may need to enforce invariants.
-> The documentation may be inaccurate.
+> Caveat: This is an internal module, and is exposed for the sake of
+> interest only.  The API may change in a patch bump.  The user may need to
+> enforce invariants.  The documentation may be inaccurate.
 
-If you want to get an idea of how the pcap-ng format works, take a look at
-[`Block`](enum.Block.html).
+That said, if you want to get an idea of how the pcap-ng format works,
+take a look at [`Block`](enum.Block.html).
 
-All documentation in this module is taken from [the pcap-ng spec][].  It is copyright (c) 2018 IETF
-Trust and the persons identified as the authors of the linked document. All rights reserved.
+All documentation in this module is taken from [the pcap-ng spec][].  It is
+copyright (c) 2018 IETF Trust and the persons identified as the authors of
+the linked document. All rights reserved.
 
 [the pcap-ng spec]: https://github.com/pcapng/pcapng
 */
