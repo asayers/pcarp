@@ -4,7 +4,7 @@ pcarp is a pure-Rust library for reading pcap-ng files.
 * _Correct_:  Agrees with `tshark` across a broad test suite.
 * _Fast_:  Zero-copy.  Performance is comparable to `libpcap`.
 * _Flexible input_:  Takes anything which implements `Read`.
-* _Flexible output_: exposes a streaming-iterator-style API.
+* _Flexible output_: Exposes a streaming-iterator-style API.
 * _Reliable_: No panics, even on malformed input.
 
 See the README for more details.
