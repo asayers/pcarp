@@ -78,6 +78,7 @@ pub struct Capture<R> {
 
 impl<R: Read> Capture<R> {
     /// Create a new `Capture`.
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(rdr: R) -> Result<Capture<R>> {
         let mut rdr = BufReader::with_capacity(BUF_CAPACITY, rdr)
             .set_policy(MinBuffered(DEFAULT_MIN_BUFFERED));
