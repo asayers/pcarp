@@ -26,7 +26,7 @@ fn main() {
 
     let path = PathBuf::from(args.value_of("pcap").unwrap());
     let file = File::open(&path).unwrap();
-    let reader: Box<Read> = match path.extension().and_then(|x| x.to_str()) {
+    let reader: Box<dyn Read> = match path.extension().and_then(|x| x.to_str()) {
         Some("pcapng") => Box::new(file),
         Some("gz") => Box::new(flate2::read::GzDecoder::new(file)),
         Some("xz") => Box::new(xz2::read::XzDecoder::new(file)),
