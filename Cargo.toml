@@ -13,14 +13,14 @@ repository = "https://github.com/asayers/pcarp"
 edition = "2018"
 
 [dependencies]
-buf_redux = "0.7"
+buf_redux = "0.8"
 byteorder = "1.0"
 failure = "0.1"
 log = "0.4"
 
 [dev-dependencies]
 clap = "2.32"
-env_logger = "0.5"
+env_logger = "0.7"
 flate2 = "1.0"
 humantime = "1.1"
 pcap = "0.7"
