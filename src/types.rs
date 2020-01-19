@@ -394,11 +394,11 @@ impl Interface {
                     match v >> 7 {
                         0 => {
                             units_per_sec =
-                                checked_pow(10_u32, exp).ok_or(Error::ResolutionTooHigh)?
+                                10_u32.checked_pow(exp).ok_or(Error::ResolutionTooHigh)?
                         }
                         1 => {
                             units_per_sec =
-                                checked_pow(2_u32, exp).ok_or(Error::ResolutionTooHigh)?
+                                2_u32.checked_pow(exp).ok_or(Error::ResolutionTooHigh)?
                         }
                         _ => { /* impossible */ }
                     }
@@ -413,27 +413,4 @@ impl Interface {
             units_per_sec,
         })
     }
-}
-
-// TODO: Remove this when `checked_pow` lands in stable
-#[inline]
-pub fn checked_pow(mut base: u32, mut exp: u32) -> Option<u32> {
-    let mut acc: u32 = 1;
-
-    while exp > 1 {
-        if (exp & 1) == 1 {
-            acc = acc.checked_mul(base)?;
-        }
-        exp /= 2;
-        base = base.checked_mul(base)?;
-    }
-
-    // Deal with the final bit of the exponent separately, since
-    // squaring the base afterwards is not necessary and may cause a
-    // needless overflow.
-    if exp == 1 {
-        acc = acc.checked_mul(base)?;
-    }
-
-    Some(acc)
 }
