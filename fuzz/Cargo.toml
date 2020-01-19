@@ -1,9 +1,23 @@
 [package]
-name = "fuzz"
-version = "0.1.0"
-authors = ["Alex Sayers <alex@asayers.com>"]
+name = "pcarp-fuzz"
+version = "0.0.0"
+authors = ["Automatically generated"]
+publish = false
 edition = "2018"
 
+[package.metadata]
+cargo-fuzz = true
+
 [dependencies]
-afl = "0.4.3"
-pcarp = { path = "../" }
+libfuzzer-sys = "0.2"
+
+[dependencies.pcarp]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "fuzz_target_1"
+path = "fuzz_targets/fuzz_target_1.rs"
