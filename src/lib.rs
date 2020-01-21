@@ -149,6 +149,7 @@ impl<R: Read> Capture<R> {
                     debug!("Starting a new section: {:?}", x);
                     assert_eq!(self.endianness, x.endianness);
                     self.interfaces.clear();
+                    self.current_interface = None;
                     self.resolved_names.clear();
                 }
                 Block::InterfaceDescription(desc) => {
