@@ -279,6 +279,7 @@ pub struct EnhancedPacket<'a> {
 
 impl<'a> FromBytes<'a> for EnhancedPacket<'a> {
     fn parse<B: ByteOrder>(buf: &'a [u8]) -> Result<EnhancedPacket<'a>> {
+        require_bytes(buf, 16)?;
         let captured_len = B::read_u32(&buf[12..16]);
         require_bytes(buf, 20 + captured_len as usize)?;
         let timestamp_high = B::read_u32(&buf[4..8]);
@@ -338,6 +339,7 @@ pub struct SimplePacket {
 
 impl<'a> FromBytes<'a> for SimplePacket {
     fn parse<B: ByteOrder>(buf: &[u8]) -> Result<SimplePacket> {
+        require_bytes(buf, 4)?;
         let packet_len = B::read_u32(&buf[0..4]);
         require_bytes(buf, 4 + packet_len as usize)?;
         Ok(SimplePacket {
@@ -481,6 +483,7 @@ pub struct ObsoletePacket<'a> {
 
 impl<'a> FromBytes<'a> for ObsoletePacket<'a> {
     fn parse<B: ByteOrder>(buf: &'a [u8]) -> Result<ObsoletePacket<'a>> {
+        require_bytes(buf, 16)?;
         let captured_len = B::read_u32(&buf[12..16]);
         require_bytes(buf, 20 + captured_len as usize)?;
         let timestamp_high = B::read_u32(&buf[4..8]);
