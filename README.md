@@ -3,7 +3,7 @@
 A pure-Rust library for reading pcap-ng files.
 
 * _Correct_:  Agrees with `tshark` across a broad test suite.
-* _Fast_:  Zero-copy.  Performance is comparable to `libpcap`.
+* _Fast_:  Zero-copy.  Performance is in `libpcap`'s ballpark.
 * _Flexible input_:  Takes anything which implements `Read`.
 * _Flexible output_: Exposes a streaming-iterator-style API.
 * _Reliable_: No panics, even on malformed input.
@@ -51,11 +51,10 @@ don't assume that your stream will terminate.
 
 ## Performance
 
-Proper benchmarking is a TODO.  I have compared the decoding time to
-that of the `pcap` library (which uses `libpcap`) over a variety of pcaps.
-On some files `pcarp` consistently overperforms, and on some it consistently
-underperforms, so it's not really possible to say which of the two performs
-better; but I think it's fair to say they're similar.
+I've benchmarked the decoding time against the `pcap` library (which uses
+`libpcap`) over a variety of pcaps.  libpcap dominates the benchmarks, but not
+by a huge amount.  Interestingly, the savings come mostly from spending less
+time in the kernel.  Somehow libpcap is performing fewer syscalls than pcarp...
 
 [1]: https://wiki.wireshark.org/SampleCaptures
 [2]: https://docs.rs/flate2/*/flate2/read/struct.GzDecoder.html
