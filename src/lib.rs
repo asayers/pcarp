@@ -103,10 +103,7 @@ impl<R: Read> Capture<R> {
     /// This function is a wrapper around the lower-level API:
     /// it simply calls `advance()` then `get()`.
     #[allow(clippy::should_implement_trait)]
-    pub fn next<'a, 'b>(&'a mut self) -> Option<Result<Packet<'b>>>
-    where
-        'a: 'b,
-    {
+    pub fn next(&mut self) -> Option<Result<Packet>> {
         match self.advance() {
             Err(e) => Some(Err(e)),
             Ok(()) => self.get().map(Ok),
