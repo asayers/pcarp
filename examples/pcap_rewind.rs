@@ -9,6 +9,7 @@ fn main() {
         .args_from_usage("<pcap> 'The pcapng file to read from'")
         .get_matches();
 
+    env_logger::init();
     let path = PathBuf::from(args.value_of("pcap").unwrap());
     let file = File::open(&path).unwrap();
     let mut capture = Capture::new(file).unwrap();

@@ -10,19 +10,10 @@ fn main() {
     let args = App::new("pcap_dump")
         .version("0.1")
         .about("Dumps the packets from a pcapng file")
-        .args_from_usage(
-            "<pcap>  'The pcapng file to read from'
-             --verbose -v 'Enable verbose output'",
-        )
+        .args_from_usage("<pcap>  'The pcapng file to read from'")
         .get_matches();
 
-    // Initialise the logger
-    let log_level = if args.is_present("verbose") {
-        log::LevelFilter::Info
-    } else {
-        log::LevelFilter::Warn
-    };
-    env_logger::Builder::new().filter(None, log_level).init();
+    env_logger::init();
 
     let path = PathBuf::from(args.value_of("pcap").unwrap());
     let file = File::open(&path).unwrap();

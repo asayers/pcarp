@@ -7,15 +7,10 @@ fn main() {
     let args = App::new("pcap_dump")
         .version("0.1")
         .about("Dumps the packets from a pcapng file")
-        .args_from_usage(
-            "<pcap>  'The pcapng file to read from'
-             [verbosity]... -v 'Sets the level of verbosity'",
-        )
+        .args_from_usage("<pcap>  'The pcapng file to read from'")
         .get_matches();
 
-    // Initialise the logger
-    let log_level = log_level_from_int(args.occurrences_of("verbosity"));
-    env_logger::Builder::new().filter(None, log_level).init();
+    env_logger::init();
 
     let mut pcap = Capture::from_file(args.value_of("pcap").unwrap()).unwrap();
     let ts = Instant::now();
