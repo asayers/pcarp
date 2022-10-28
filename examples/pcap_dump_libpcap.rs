@@ -1,18 +1,21 @@
-use clap::App;
+use clap::Parser;
 use log::*;
 use pcap::*;
-use std::time::*;
+use std::{path::PathBuf, time::*};
+
+/// Dumps the packets from a pcapng file
+#[derive(Parser)]
+struct Opts {
+    /// The pcapng file to read from
+    pcap: PathBuf,
+}
 
 fn main() {
-    let args = App::new("pcap_dump")
-        .version("0.1")
-        .about("Dumps the packets from a pcapng file")
-        .args_from_usage("<pcap>  'The pcapng file to read from'")
-        .get_matches();
+    let opts = Opts::parse();
 
     env_logger::init();
 
-    let mut pcap = Capture::from_file(args.value_of("pcap").unwrap()).unwrap();
+    let mut pcap = Capture::from_file(opts.pcap).unwrap();
     let ts = Instant::now();
     let mut n = 0;
     loop {

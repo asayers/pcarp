@@ -1,4 +1,4 @@
-use clap::App;
+use clap::Parser;
 use log::*;
 use pcarp::*;
 use std::fs::File;
@@ -6,18 +6,20 @@ use std::io::Read;
 use std::path::PathBuf;
 use std::time::*;
 
+/// Dumps the packets from a pcapng file
+#[derive(Parser)]
+struct Opts {
+    /// The pcapng file to read from
+    pcap: PathBuf,
+}
+
 fn main() {
-    let args = App::new("pcap_dump")
-        .version("0.1")
-        .about("Dumps the packets from a pcapng file")
-        .args_from_usage("<pcap>  'The pcapng file to read from'")
-        .get_matches();
+    let opts = Opts::parse();
 
     env_logger::init();
 
-    let path = PathBuf::from(args.value_of("pcap").unwrap());
-    let file = File::open(&path).unwrap();
-    let reader: Box<dyn Read> = match path.extension().and_then(|x| x.to_str()) {
+    let file = File::open(&opts.pcap).unwrap();
+    let reader: Box<dyn Read> = match opts.pcap.extension().and_then(|x| x.to_str()) {
         Some("pcapng") => Box::new(file),
         Some("gz") => Box::new(flate2::read::GzDecoder::new(file)),
         Some("xz") => Box::new(xz2::read::XzDecoder::new(file)),
