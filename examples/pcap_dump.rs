@@ -1,10 +1,10 @@
 use clap::Parser;
-use log::*;
 use pcarp::*;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::time::*;
+use tracing::*;
 
 /// Dumps the packets from a pcapng file
 #[derive(Parser)]

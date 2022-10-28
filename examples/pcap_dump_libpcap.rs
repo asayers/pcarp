@@ -1,7 +1,7 @@
 use clap::Parser;
-use log::*;
 use pcap::*;
 use std::{path::PathBuf, time::*};
+use tracing::*;
 
 /// Dumps the packets from a pcapng file
 #[derive(Parser)]

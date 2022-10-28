@@ -38,10 +38,10 @@ pub use crate::types::{Error, Interface, LinkType, Packet};
 use buf_redux::policy::MinBuffered;
 use buf_redux::BufReader;
 use byteorder::{BigEndian, LittleEndian};
-use log::*;
 use std::io::{BufRead, Read, Seek, SeekFrom};
 use std::ops::Range;
 use std::time::*;
+use tracing::*;
 
 const BUF_CAPACITY: usize = 10_000_000;
 const DEFAULT_MIN_BUFFERED: usize = 8 * 1024; // 8KB

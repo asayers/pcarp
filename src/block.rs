@@ -16,8 +16,8 @@ the linked document. All rights reserved.
 
 use crate::types::*;
 use byteorder::ByteOrder;
-use log::*;
 use std::ops::Range;
+use tracing::*;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Block<'a> {
