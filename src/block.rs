@@ -1,4 +1,4 @@
-/*! **[Internal]** Block definitions.
+/*! **\[Internal\]** Block definitions.
 
 > Caveat: This is an internal module, and is exposed for the sake of
 > interest only.  The API may change in a patch bump.  The user may need to
