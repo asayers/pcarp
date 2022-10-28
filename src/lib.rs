@@ -231,6 +231,14 @@ impl<R: Read> Capture<R> {
         })
     }
 
+    /// Get some info about a certain network interface.
+    ///
+    /// Note: This method show info for the interfaces in the current
+    /// section of the pcap.  If you have an [`InterfaceId`] which you
+    /// got while reading a different section of the pcap, and you pass it
+    /// to this function, you will get completely unrelated information.
+    /// If you want infomation about a packet's interface, call this method
+    /// immediately after receiving the packet.
     fn lookup_interface(&self, interface_id: InterfaceId) -> Option<&Interface> {
         self.interfaces.get(interface_id.0 as usize)
     }
