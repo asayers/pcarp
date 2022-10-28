@@ -23,7 +23,7 @@ env_logger = "0.7"
 flate2 = "1.0"
 humantime = "1.1"
 pcap = "0.11.0"
-sha1 = { version = "0.6", features = ["std"] }
+sha1 = { version = "0.10.5", features = ["std"] }
 xz2 = "0.1"
 
 [profile.release]

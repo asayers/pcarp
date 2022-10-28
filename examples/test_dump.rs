@@ -1,4 +1,5 @@
 use pcarp::*;
+use sha1::{Digest, Sha1};
 
 fn main() {
     let path = std::path::PathBuf::from(std::env::args().nth(1).unwrap());
@@ -12,11 +13,11 @@ fn main() {
             .duration_since(std::time::SystemTime::UNIX_EPOCH)
             .unwrap();
         println!(
-            "{:0>10}.{:0>9} {:>6} {}",
+            "{:0>10}.{:0>9} {:>6} {:x}",
             ts.as_secs(),
             ts.subsec_nanos(),
             pkt.data.len(),
-            sha1::Sha1::from(pkt.data).hexdigest()
+            Sha1::digest(pkt.data),
         );
     }
 }
