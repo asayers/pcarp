@@ -167,11 +167,7 @@ impl<R: Read> Capture<R> {
                 Block::EnhancedPacket(pkt) => {
                     trace!("Got a packet: {:?}", pkt);
                     self.current_timestamp = Some(pkt.timestamp);
-                    if self.interfaces.len() > pkt.interface_id.0 as usize {
-                        self.current_interface = Some(pkt.interface_id);
-                    } else {
-                        error!("Refusing to switch to an unknown interface");
-                    }
+                    self.current_interface = Some(pkt.interface_id);
                     self.current_data = pkt.packet_data;
                     return Ok(());
                 }
@@ -185,11 +181,7 @@ impl<R: Read> Capture<R> {
                 Block::ObsoletePacket(pkt) => {
                     trace!("Got a packet: {:?}", pkt);
                     self.current_timestamp = Some(pkt.timestamp);
-                    if self.interfaces.len() > pkt.interface_id.0 as usize {
-                        self.current_interface = Some(pkt.interface_id);
-                    } else {
-                        error!("Refusing to switch to an unknown interface");
-                    }
+                    self.current_interface = Some(pkt.interface_id);
                     self.current_data = pkt.packet_data;
                     return Ok(());
                 }
