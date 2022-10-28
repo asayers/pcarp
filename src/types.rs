@@ -360,7 +360,7 @@ pub struct Interface {
     /// the resolution as as negative power of 2 (e.g. 10 means 1/1024 of second). If this option is
     /// not present, a resolution of 10^-6 is assumed (i.e. timestamps have the same resolution of
     /// the standard 'libpcap' timestamps).
-    pub(crate) units_per_sec: u32,
+    pub units_per_sec: u32,
 }
 
 impl Interface {
