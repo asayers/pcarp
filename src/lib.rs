@@ -222,10 +222,14 @@ impl<R: Read> Capture<R> {
         if self.finished {
             return None;
         }
-        let interface = self.current_interface.map(|x| self.lookup_interface(x));
-        let timestamp = self.current_interface.and_then(|i| {
-            self.current_timestamp
-                .map(|ts| self.resolve_timestamp(i, ts))
+        let interface = self
+            .current_interface
+            .and_then(|x| self.lookup_interface(x));
+        let timestamp = interface.zip(self.current_timestamp).map(|(iface, ts)| {
+            let units_per_sec = u64::from(iface.units_per_sec);
+            let secs = ts / units_per_sec;
+            let nanos = ((ts % units_per_sec) * 1_000_000_000 / units_per_sec) as u32;
+            SystemTime::UNIX_EPOCH + Duration::new(secs, nanos)
         });
         let body = &self.rdr.buffer()[8..];
         Some(Packet {
@@ -235,16 +239,8 @@ impl<R: Read> Capture<R> {
         })
     }
 
-    fn lookup_interface(&self, interface_id: InterfaceId) -> &Interface {
-        &self.interfaces[interface_id.0 as usize]
-    }
-
-    fn resolve_timestamp(&self, interface_id: InterfaceId, timestamp: u64) -> SystemTime {
-        let iface = self.lookup_interface(interface_id);
-        let units_per_sec = u64::from(iface.units_per_sec);
-        let secs = timestamp / units_per_sec;
-        let nanos = ((timestamp % units_per_sec) * 1_000_000_000 / units_per_sec) as u32;
-        SystemTime::UNIX_EPOCH + Duration::new(secs, nanos)
+    fn lookup_interface(&self, interface_id: InterfaceId) -> Option<&Interface> {
+        self.interfaces.get(interface_id.0 as usize)
     }
 }
 
