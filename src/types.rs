@@ -57,7 +57,7 @@ impl From<io::Error> for Error {
 }
 
 /// A single captured packet.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Packet<'a> {
     /// The time at which the packet was captured.  The resolution depends on the interface.
     pub timestamp: Option<SystemTime>,
@@ -69,7 +69,7 @@ pub struct Packet<'a> {
 
 /// The type of physical link backing a network interface.
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum LinkType {
     /// No link layer information. A packet saved with this link layer contains a raw L3 packet
     /// preceded by a 32-bit host-byte-order AF_ value indicating the specific L3 type.
@@ -294,7 +294,7 @@ impl LinkType {
     }
 }
 
-#[derive(Clone, PartialEq, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, Debug, Copy)]
 pub enum Endianness {
     Big,
     Little,
@@ -331,7 +331,7 @@ impl KnownByteOrder for LittleEndian {
     }
 }
 
-#[derive(Clone, PartialEq, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, Debug, Copy)]
 pub struct InterfaceId(pub u32);
 
 pub trait FromBytes<'a>: Sized {
@@ -350,7 +350,7 @@ pub fn require_bytes(buf: &[u8], len: usize) -> Result<()> {
 }
 
 /// A network interface.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Interface {
     pub link_type: LinkType,
     /// The if_tsresol option identifies the resolution of timestamps. If the Most Significant Bit

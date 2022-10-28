@@ -19,7 +19,7 @@ use byteorder::ByteOrder;
 use log::*;
 use std::ops::Range;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Block<'a> {
     SectionHeader(SectionHeader<'a>),               // 0x0A0D0D0A
     InterfaceDescription(InterfaceDescription<'a>), // 0x00000001
@@ -121,7 +121,7 @@ impl<'a> From<EnhancedPacket<'a>> for Block<'a> {
 /// copyright notice.
 ///
 /// [1]: https://github.com/pcapng/pcapng
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct SectionHeader<'a> {
     /// Used to distinguish sections that have been saved on little-endian machines from the ones
     /// saved on big-endian machines.
@@ -194,7 +194,7 @@ impl<'a> FromBytes<'a> for SectionHeader<'a> {
 /// copyright notice.
 ///
 /// [1]: https://github.com/pcapng/pcapng
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct InterfaceDescription<'a> {
     /// A value that defines the link layer type of this interface. The list of Standardized Link
     /// Layer Type codes is available in the tcpdump.org link-layer header types registry.
@@ -241,7 +241,7 @@ impl<'a> FromBytes<'a> for InterfaceDescription<'a> {
 /// copyright notice.
 ///
 /// [1]: https://github.com/pcapng/pcapng
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct EnhancedPacket<'a> {
     /// Specifies the interface this packet comes from; the correct interface will be the one whose
     /// Interface Description Block (within the current Section of the file) is identified by the
@@ -319,7 +319,7 @@ impl<'a> FromBytes<'a> for EnhancedPacket<'a> {
 /// copyright notice.
 ///
 /// [1]: https://github.com/pcapng/pcapng
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct SimplePacket {
     /// Actual length of the packet when it was transmitted on the network. It can be different
     /// from length of the Packet Data field's length if the packet has been truncated by the
@@ -376,7 +376,7 @@ impl<'a> FromBytes<'a> for SimplePacket {
 /// copyright notice.
 ///
 /// [1]: https://github.com/pcapng/pcapng
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct NameResolution {
     /// Zero or more Name Resolution Records (in the TLV format), each of which contains an
     /// association between a network address and a name. An nrb_record_end MUST be added after the
@@ -407,7 +407,7 @@ impl<'a> FromBytes<'a> for NameResolution {
 /// copyright notice.
 ///
 /// [1]: https://github.com/pcapng/pcapng
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct InterfaceStatistics<'a> {
     /// Specifies the interface these statistics refers to; the correct interface will be the one
     /// whose Interface Description Block (within the current Section of the file) is identified by
@@ -447,7 +447,7 @@ impl<'a> FromBytes<'a> for InterfaceStatistics<'a> {
 /// copyright notice.
 ///
 /// [1]: https://github.com/pcapng/pcapng
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ObsoletePacket<'a> {
     /// Specifies the interface this packet comes from; the correct interface will be the one whose
     /// Interface Description Block (within the current Section of the file) is identified by the
