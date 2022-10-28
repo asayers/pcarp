@@ -360,6 +360,7 @@ pub fn require_bytes(buf: &[u8], len: usize) -> Result<()> {
 /// A network interface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Interface {
+    pub id: InterfaceId,
     pub link_type: LinkType,
     /// The if_tsresol option identifies the resolution of timestamps. If the Most Significant Bit
     /// is equal to zero, the remaining bits indicates the resolution of the timestamp as a negative
@@ -372,7 +373,10 @@ pub struct Interface {
 }
 
 impl Interface {
-    pub(crate) fn from_desc<B: ByteOrder>(desc: &InterfaceDescription) -> Result<Interface> {
+    pub(crate) fn from_desc<B: ByteOrder>(
+        id: InterfaceId,
+        desc: &InterfaceDescription,
+    ) -> Result<Interface> {
         let mut units_per_sec = 1_000_000;
         let mut i = 0;
         loop {
@@ -417,6 +421,7 @@ impl Interface {
             i += option_len + padding_len;
         }
         Ok(Interface {
+            id,
             link_type: desc.link_type,
             units_per_sec,
         })

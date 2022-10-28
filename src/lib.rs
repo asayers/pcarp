@@ -34,7 +34,7 @@ mod types;
 
 use crate::block::*;
 use crate::types::*;
-pub use crate::types::{Error, Interface, LinkType, Packet};
+pub use crate::types::{Error, Interface, InterfaceId, LinkType, Packet};
 use buf_redux::policy::MinBuffered;
 use buf_redux::BufReader;
 use byteorder::{BigEndian, LittleEndian};
@@ -157,9 +157,12 @@ impl<R: Read> Capture<R> {
                               our buffer."
                         );
                     }
+                    let iface_id = InterfaceId(self.interfaces.len() as u32);
                     let iface = match self.endianness {
-                        Endianness::Big => Interface::from_desc::<BigEndian>(&desc)?,
-                        Endianness::Little => Interface::from_desc::<LittleEndian>(&desc)?,
+                        Endianness::Big => Interface::from_desc::<BigEndian>(iface_id, &desc)?,
+                        Endianness::Little => {
+                            Interface::from_desc::<LittleEndian>(iface_id, &desc)?
+                        }
                     };
                     debug!("Parsed: {:?}", iface);
                     self.interfaces.push(iface);
