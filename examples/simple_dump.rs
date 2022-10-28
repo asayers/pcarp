@@ -24,7 +24,7 @@ fn main() {
         "libpcap" => {
             let mut pcap = Capture::from_file(path).unwrap();
             loop {
-                match pcap.next() {
+                match pcap.next_packet() {
                     Ok(pkt) => {
                         let ts = SystemTime::UNIX_EPOCH
                             + Duration::new(

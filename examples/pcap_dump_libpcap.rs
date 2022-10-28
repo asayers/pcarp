@@ -19,7 +19,7 @@ fn main() {
     let ts = Instant::now();
     let mut n = 0;
     loop {
-        match pcap.next() {
+        match pcap.next_packet() {
             Ok(pkt) => {
                 n += 1;
                 let dur = Duration::new(

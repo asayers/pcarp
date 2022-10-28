@@ -22,7 +22,7 @@ clap = { version = "4.0.18", features = ["derive"] }
 env_logger = "0.7"
 flate2 = "1.0"
 humantime = "1.1"
-pcap = "0.7"
+pcap = "0.11.0"
 sha1 = { version = "0.6", features = ["std"] }
 xz2 = "0.1"
 

@@ -19,7 +19,7 @@ fn main() {
     let mut bytes2 = 0;
     let start = Instant::now();
     loop {
-        match pcap.next() {
+        match pcap.next_packet() {
             Err(pcap::Error::NoMorePackets) => break,
             Err(_) => (),
             Ok(pkt) => {
