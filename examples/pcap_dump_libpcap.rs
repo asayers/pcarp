@@ -46,14 +46,3 @@ fn main() {
         }
     }
 }
-
-pub fn log_level_from_int(n: u64) -> log::LevelFilter {
-    match n {
-        0 => log::LevelFilter::Off,
-        1 => log::LevelFilter::Error,
-        2 => log::LevelFilter::Warn,
-        3 => log::LevelFilter::Info,
-        4 => log::LevelFilter::Debug,
-        _ => log::LevelFilter::Trace,
-    }
-}
