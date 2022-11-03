@@ -35,7 +35,7 @@ pub struct Packet<'a> {
     /// The time at which the packet was captured.  The resolution depends on the interface.
     pub timestamp: Option<SystemTime>,
     /// The interface used to capture this packet.
-    pub interface: Option<&'a Interface>,
+    pub interface: Option<InterfaceId>,
     /// The raw packet data.
     pub data: &'a [u8],
     /// The location of the data in the underlying reader.
@@ -311,7 +311,7 @@ impl KnownByteOrder for LittleEndian {
 /// Note: Packets from different sections will have different interface IDs,
 /// even if they were actually captured from the same interface.
 #[derive(Clone, PartialEq, Eq, Debug, Copy)]
-pub struct InterfaceId(pub u32);
+pub struct InterfaceId(pub u32, pub u32);
 
 pub trait FromBytes<'a>: Sized {
     fn parse<B: ByteOrder + KnownByteOrder>(buf: &'a [u8]) -> Result<Self>;

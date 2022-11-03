@@ -66,15 +66,13 @@ pub struct Capture<R> {
     endianness: Endianness,
     /// The interface map for the current section.
     interfaces: Vec<Interface>,
-    /// The number of interfaces defined in previous sections.  We use this
-    /// to avoid repeating interface IDs within a multi-section pcap.
-    n_historical_ifaces: u32,
     /// The resolved names for the current section.
     resolved_names: Vec<NameResolution>,
 
     last_block_len: usize,
 
     // These are about the last packet that was decoded
+    current_section: u32,
     current_timestamp: Option<u64>,
     // Relative to the current section.  This is an index into `interfaces`.
     current_interface: Option<u32>,
@@ -95,10 +93,10 @@ impl<R: Read> Capture<R> {
 
             endianness,
             interfaces: Vec::new(),
-            n_historical_ifaces: 0,
             resolved_names: Vec::new(),
 
             last_block_len: 0,
+            current_section: 0,
             current_timestamp: None,
             current_interface: None,
             current_data: 0..0,
@@ -153,10 +151,10 @@ impl<R: Read> Capture<R> {
                 Block::SectionHeader(x) => {
                     debug!("Starting a new section: {:?}", x);
                     assert_eq!(self.endianness, x.endianness);
-                    self.n_historical_ifaces += self.interfaces.len() as u32;
                     self.interfaces.clear();
                     self.current_interface = None;
                     self.resolved_names.clear();
+                    self.current_section += 1;
                 }
                 Block::InterfaceDescription(desc) => {
                     debug!("Defined a new interface: {:?}", desc);
@@ -166,8 +164,7 @@ impl<R: Read> Capture<R> {
                               our buffer."
                         );
                     }
-                    let iface_id =
-                        InterfaceId(self.interfaces.len() as u32 + self.n_historical_ifaces);
+                    let iface_id = InterfaceId(self.current_section, self.interfaces.len() as u32);
                     let iface = match self.endianness {
                         Endianness::Big => Interface::from_desc::<BigEndian>(iface_id, &desc)?,
                         Endianness::Little => {
@@ -227,21 +224,29 @@ impl<R: Read> Capture<R> {
         if self.finished {
             return None;
         }
+
         let interface = self
             .current_interface
-            .and_then(|x| self.lookup_interface(x));
-        let timestamp = interface.zip(self.current_timestamp).map(|(iface, ts)| {
-            let units_per_sec = u64::from(iface.units_per_sec);
-            let secs = ts / units_per_sec;
-            let nanos = ((ts % units_per_sec) * 1_000_000_000 / units_per_sec) as u32;
-            SystemTime::UNIX_EPOCH + Duration::new(secs, nanos)
-        });
+            .map(|x| InterfaceId(self.current_section, x));
+
+        let timestamp = self
+            .current_interface
+            .and_then(|id| self.interfaces.get(id as usize))
+            .zip(self.current_timestamp)
+            .map(|(iface, ts)| {
+                let units_per_sec = u64::from(iface.units_per_sec);
+                let secs = ts / units_per_sec;
+                let nanos = ((ts % units_per_sec) * 1_000_000_000 / units_per_sec) as u32;
+                SystemTime::UNIX_EPOCH + Duration::new(secs, nanos)
+            });
+
         let body = &self.rdr.buffer()[8..];
         let data_offset = std::ops::Range {
             start: self.current_data.start + self.n_bytes_read + 8,
             end: self.current_data.end + self.n_bytes_read + 8,
         };
         let data = &body.get(self.current_data.clone())?;
+
         Some(Packet {
             timestamp,
             interface,
@@ -252,14 +257,14 @@ impl<R: Read> Capture<R> {
 
     /// Get some info about a certain network interface.
     ///
-    /// Note: This method show info for the interfaces in the current
-    /// section of the pcap.  If you have an [`InterfaceId`] which you
-    /// got while reading a different section of the pcap, and you pass it
-    /// to this function, you will get completely unrelated information.
-    /// If you want infomation about a packet's interface, call this method
-    /// immediately after receiving the packet.
-    fn lookup_interface(&self, interface_id: u32) -> Option<&Interface> {
-        self.interfaces.get(interface_id as usize)
+    /// Note: Only shows info for the interfaces in the current section of
+    /// the pcap.
+    pub fn lookup_interface(&self, interface_id: InterfaceId) -> Option<&Interface> {
+        if interface_id.0 != self.current_section {
+            None
+        } else {
+            self.interfaces.get(interface_id.1 as usize)
+        }
     }
 }
 
