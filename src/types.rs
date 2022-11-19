@@ -2,6 +2,7 @@ use crate::block::*;
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use std::fmt;
 use std::io;
+use std::ops::Range;
 use std::result;
 use std::time::SystemTime;
 
@@ -65,6 +66,8 @@ pub struct Packet<'a> {
     pub interface: Option<&'a Interface>,
     /// The raw packet data.
     pub data: &'a [u8],
+    /// The location of the data in the underlying reader.
+    pub data_offset: Range<usize>,
 }
 
 /// The type of physical link backing a network interface.

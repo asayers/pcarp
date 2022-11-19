@@ -59,6 +59,7 @@ const DEFAULT_MIN_BUFFERED: usize = 8 * 1024; // 8KB
 /// Nothing bad will happen if you mix these two APIs.
 pub struct Capture<R> {
     rdr: BufReader<R, MinBuffered>,
+    n_bytes_read: usize,
     finished: bool,
 
     /// Endianness used in the current section. Each section can use a different endianness.
@@ -89,6 +90,7 @@ impl<R: Read> Capture<R> {
         let endianness = peek_for_shb(rdr.fill_buf()?)?.ok_or(Error::DidntStartWithSHB)?;
         Ok(Capture {
             rdr,
+            n_bytes_read: 0,
             finished: false,
 
             endianness,
@@ -123,6 +125,7 @@ impl<R: Read> Capture<R> {
         loop {
             // Look at the length of the _last_ block, to see how much data to discard
             self.rdr.consume(self.last_block_len);
+            self.n_bytes_read += self.last_block_len;
 
             // Fill the buffer up - hopefully we'll have enough data for the next block!
             let buf = self.rdr.fill_buf()?;
@@ -234,10 +237,15 @@ impl<R: Read> Capture<R> {
             SystemTime::UNIX_EPOCH + Duration::new(secs, nanos)
         });
         let body = &self.rdr.buffer()[8..];
+        let data_offset = std::ops::Range {
+            start: self.current_data.start + self.n_bytes_read + 8,
+            end: self.current_data.end + self.n_bytes_read + 8,
+        };
         Some(Packet {
             timestamp,
             interface,
             data: &body[self.current_data.clone()],
+            data_offset,
         })
     }
 
@@ -258,6 +266,7 @@ impl<R: Read + Seek> Capture<R> {
     /// Rewind to the beginning of the pcapng file
     pub fn rewind(&mut self) -> Result<()> {
         self.rdr.seek(SeekFrom::Start(0))?;
+        self.n_bytes_read = 0;
         self.finished = false;
         self.endianness = peek_for_shb(self.rdr.fill_buf()?)?.ok_or(Error::DidntStartWithSHB)?;
         self.interfaces = Vec::new();
