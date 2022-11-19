@@ -65,6 +65,9 @@ pub struct Capture<R> {
     endianness: Endianness,
     /// The interface map for the current section.
     interfaces: Vec<Interface>,
+    /// The number of interfaces defined in previous sections.  We use this
+    /// to avoid repeating interface IDs within a multi-section pcap.
+    n_historical_ifaces: u32,
     /// The resolved names for the current section.
     resolved_names: Vec<NameResolution>,
 
@@ -72,7 +75,8 @@ pub struct Capture<R> {
 
     // These are about the last packet that was decoded
     current_timestamp: Option<u64>,
-    current_interface: Option<InterfaceId>,
+    // Relative to the current section.  This is an index into `interfaces`.
+    current_interface: Option<u32>,
     current_data: Range<usize>,
 }
 
@@ -89,6 +93,7 @@ impl<R: Read> Capture<R> {
 
             endianness,
             interfaces: Vec::new(),
+            n_historical_ifaces: 0,
             resolved_names: Vec::new(),
 
             last_block_len: 0,
@@ -145,6 +150,7 @@ impl<R: Read> Capture<R> {
                 Block::SectionHeader(x) => {
                     debug!("Starting a new section: {:?}", x);
                     assert_eq!(self.endianness, x.endianness);
+                    self.n_historical_ifaces += self.interfaces.len() as u32;
                     self.interfaces.clear();
                     self.current_interface = None;
                     self.resolved_names.clear();
@@ -157,7 +163,8 @@ impl<R: Read> Capture<R> {
                               our buffer."
                         );
                     }
-                    let iface_id = InterfaceId(self.interfaces.len() as u32);
+                    let iface_id =
+                        InterfaceId(self.interfaces.len() as u32 + self.n_historical_ifaces);
                     let iface = match self.endianness {
                         Endianness::Big => Interface::from_desc::<BigEndian>(iface_id, &desc)?,
                         Endianness::Little => {
@@ -242,8 +249,8 @@ impl<R: Read> Capture<R> {
     /// to this function, you will get completely unrelated information.
     /// If you want infomation about a packet's interface, call this method
     /// immediately after receiving the packet.
-    fn lookup_interface(&self, interface_id: InterfaceId) -> Option<&Interface> {
-        self.interfaces.get(interface_id.0 as usize)
+    fn lookup_interface(&self, interface_id: u32) -> Option<&Interface> {
+        self.interfaces.get(interface_id as usize)
     }
 }
 

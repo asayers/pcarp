@@ -247,7 +247,7 @@ pub struct EnhancedPacket<'a> {
     /// Interface Description Block (within the current Section of the file) is identified by the
     /// same number (see Section 4.2) of this field. The interface ID MUST be valid, which means
     /// that an matching interface description block MUST exist.
-    pub interface_id: InterfaceId,
+    pub interface_id: u32,
     /// Upper 32 bits and lower 32 bits of a 64-bit timestamp. The timestamp is a single 64-bit
     /// unsigned integer that represents the number of units of time that have elapsed since
     /// 1970-01-01 00:00:00 UTC. The length of a unit of time is specified by the 'if_tsresol'
@@ -285,7 +285,7 @@ impl<'a> FromBytes<'a> for EnhancedPacket<'a> {
         let timestamp_high = B::read_u32(&buf[4..8]);
         let timestamp_low = B::read_u32(&buf[8..12]);
         Ok(EnhancedPacket {
-            interface_id: InterfaceId(B::read_u32(&buf[0..4])),
+            interface_id: B::read_u32(&buf[0..4]),
             timestamp: (u64::from(timestamp_high) << 32) + u64::from(timestamp_low),
             captured_len,
             packet_len: B::read_u32(&buf[16..20]),
@@ -412,7 +412,7 @@ pub struct InterfaceStatistics<'a> {
     /// Specifies the interface these statistics refers to; the correct interface will be the one
     /// whose Interface Description Block (within the current Section of the file) is identified by
     /// same number (see Section 4.2) of this field.
-    pub interface_id: InterfaceId,
+    pub interface_id: u32,
     /// Time this statistics refers to. The format of the timestamp is the same already defined in
     /// the Enhanced Packet Block (Section 4.3).
     pub timestamp_high: u32,
@@ -426,7 +426,7 @@ impl<'a> FromBytes<'a> for InterfaceStatistics<'a> {
     fn parse<B: ByteOrder>(buf: &'a [u8]) -> Result<InterfaceStatistics<'a>> {
         require_bytes(buf, 12)?;
         Ok(InterfaceStatistics {
-            interface_id: InterfaceId(B::read_u32(&buf[0..4])),
+            interface_id: B::read_u32(&buf[0..4]),
             timestamp_high: B::read_u32(&buf[4..8]),
             timestamp_low: B::read_u32(&buf[8..12]),
             options: &buf[12..],
@@ -453,7 +453,7 @@ pub struct ObsoletePacket<'a> {
     /// Interface Description Block (within the current Section of the file) is identified by the
     /// same number (see Section 4.2) of this field. The interface ID MUST be valid, which means
     /// that an matching interface description block MUST exist.
-    pub interface_id: InterfaceId,
+    pub interface_id: u32,
     /// A local drop counter. It specifies the number of packets lost (by the interface and the
     /// operating system) between this packet and the preceding one. The value xFFFF (in
     /// hexadecimal) is reserved for those systems in which this information is not available.
@@ -489,7 +489,7 @@ impl<'a> FromBytes<'a> for ObsoletePacket<'a> {
         let timestamp_high = B::read_u32(&buf[4..8]);
         let timestamp_low = B::read_u32(&buf[8..12]);
         Ok(ObsoletePacket {
-            interface_id: InterfaceId(u32::from(B::read_u16(&buf[0..2]))),
+            interface_id: u32::from(B::read_u16(&buf[0..2])),
             drops_count: B::read_u16(&buf[2..4]),
             timestamp: (u64::from(timestamp_high) << 4) + u64::from(timestamp_low),
             captured_len,

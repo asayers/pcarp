@@ -333,12 +333,8 @@ impl KnownByteOrder for LittleEndian {
 
 /// The ID a network interface.
 ///
-/// Note: These IDs are only valid within a single section of a pcap!
-/// When you move from one section to another, the interface IDs reset
-/// to zero.  If you're comparing interface IDs from two packets, make sure
-/// those packets came from the same section of the pcap.  If you want to
-/// call [`lookup_interface()`][crate::Capture::lookup_interface()], do it
-/// immediately after you receive the packet.
+/// Note: Packets from different sections will have different interface IDs,
+/// even if they were actually captured from the same interface.
 #[derive(Clone, PartialEq, Eq, Debug, Copy)]
 pub struct InterfaceId(pub u32);
 
