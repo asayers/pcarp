@@ -1,3 +1,8 @@
+## 1.4.0
+
+* Ensure interface IDs are unique within a pcap
+* Expose the byte offset of the packet data within the pcap
+
 ## 1.3.0
 
 * Expose the interface ID for each packet
