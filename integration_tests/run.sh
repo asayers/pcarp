@@ -13,8 +13,12 @@ runtest() {
 cargo build --example=test_dump
 ret=0
 for i in $(dirname "$0")/*.pcapng.xz; do
-    echo -ne "${YELLOW}Testing${RESET} ${i}... "
-    if runtest "$i"; then
+    pcap=${i%%.xz}
+    if ! [ -f "$pcap" ]; then
+        unxz <$i >$pcap
+    fi
+    echo -ne "${YELLOW}Testing${RESET} ${pcap}... "
+    if runtest "$pcap"; then
         echo -e "${GREEN}OK${RESET}"
     else
         ret=$?

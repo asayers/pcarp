@@ -5,7 +5,7 @@ fn main() {
     env_logger::init();
     let path = std::path::PathBuf::from(std::env::args().nth(1).unwrap());
     let file = std::fs::File::open(&path).unwrap();
-    let mut pcap = Capture::new(xz2::read::XzDecoder::new(file)).unwrap();
+    let mut pcap = Capture::new(file).unwrap();
     while let Some(pkt) = pcap.next() {
         let pkt = pkt.unwrap();
         let ts = pkt

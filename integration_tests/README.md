@@ -6,7 +6,7 @@ line per packet, formatted like so:
 
 The `test_dump` example program outputs the same format.  `run.sh` is a script
 which generates ".actual" files using `test_dump` and compares them to their
-corresponding ".expected" file.
+corresponding ".expected" file.  You will need to have `unxz` installed.
 
 # License
 
