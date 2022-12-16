@@ -241,10 +241,11 @@ impl<R: Read> Capture<R> {
             start: self.current_data.start + self.n_bytes_read + 8,
             end: self.current_data.end + self.n_bytes_read + 8,
         };
+        let data = &body.get(self.current_data.clone())?;
         Some(Packet {
             timestamp,
             interface,
-            data: &body[self.current_data.clone()],
+            data,
             data_offset,
         })
     }
