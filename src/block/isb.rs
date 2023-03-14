@@ -1,4 +1,5 @@
-use crate::types::*;
+use crate::block::util::*;
+use crate::Result;
 use byteorder::ByteOrder;
 
 /// Defines how to store some statistical data (e.g. packet dropped, etc) which can be useful to

@@ -21,6 +21,7 @@ mod nrb;
 mod opb;
 mod shb;
 mod spb;
+mod util;
 
 pub use self::epb::*;
 pub use self::idb::*;
@@ -29,8 +30,9 @@ pub use self::nrb::*;
 pub use self::opb::*;
 pub use self::shb::*;
 pub use self::spb::*;
+pub use self::util::*;
 
-use crate::types::*;
+use crate::{Error, Result};
 use byteorder::ByteOrder;
 use tracing::*;
 

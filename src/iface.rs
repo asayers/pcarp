@@ -1,46 +1,8 @@
-use crate::block::*;
-use byteorder::{BigEndian, ByteOrder, LittleEndian};
-use std::ops::Range;
-use std::result;
-use std::time::SystemTime;
-use thiserror::Error;
+/*! Info and stats about the network interfaces used to capture packets */
 
-pub type Result<T, E = Error> = result::Result<T, E>;
-
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("Didn't understand magic number {0:?}")]
-    DidntUnderstandMagicNumber([u8; 4]),
-    #[error("Not enough bytes (expected {expected}, saw {actual})")]
-    NotEnoughBytes { expected: usize, actual: usize },
-    #[error("Section didn't start with an SHB")]
-    DidntStartWithSHB,
-    #[error("Block's start and end lengths don't match")]
-    BlockLengthMismatch,
-    #[error("Block length must be at least 12 bytes")]
-    BlockLengthTooShort,
-    #[error("option_len for if_tsresol should be 1 but got {0}")]
-    WrongOptionLen(usize),
-    #[error("There were more options after an option with type 0")]
-    OptionsAfterEnd,
-    #[error("This timestamp resolution won't fit into a u32")]
-    ResolutionTooHigh,
-    #[error("IO error: {0}")]
-    IO(#[from] std::io::Error),
-}
-
-/// A single captured packet.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Packet<'a> {
-    /// The time at which the packet was captured.  The resolution depends on the interface.
-    pub timestamp: Option<SystemTime>,
-    /// The interface used to capture this packet.
-    pub interface: Option<InterfaceId>,
-    /// The raw packet data.
-    pub data: &'a [u8],
-    /// The location of the data in the underlying reader.
-    pub data_offset: Range<usize>,
-}
+use crate::block::InterfaceDescription;
+use crate::{Error, Result};
+use byteorder::ByteOrder;
 
 /// The type of physical link backing a network interface.
 #[allow(non_camel_case_types)]
@@ -269,64 +231,12 @@ impl LinkType {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Copy)]
-pub enum Endianness {
-    Big,
-    Little,
-}
-
-impl Endianness {
-    pub fn parse_from_magic(buf: &[u8]) -> Result<Self> {
-        let magic = &buf[0..4];
-        match magic {
-            [0x1A, 0x2B, 0x3C, 0x4D] => Ok(Endianness::Big),
-            [0x4D, 0x3C, 0x2B, 0x1A] => Ok(Endianness::Little),
-            _ => {
-                let mut unknown_magic = [0; 4];
-                unknown_magic.copy_from_slice(magic);
-                Err(Error::DidntUnderstandMagicNumber(unknown_magic))
-            }
-        }
-    }
-}
-
-pub trait KnownByteOrder {
-    fn endianness() -> Endianness;
-}
-
-impl KnownByteOrder for BigEndian {
-    fn endianness() -> Endianness {
-        Endianness::Big
-    }
-}
-
-impl KnownByteOrder for LittleEndian {
-    fn endianness() -> Endianness {
-        Endianness::Little
-    }
-}
-
 /// The ID a network interface.
 ///
 /// Note: Packets from different sections will have different interface IDs,
 /// even if they were actually captured from the same interface.
 #[derive(Clone, PartialEq, Eq, Debug, Copy)]
 pub struct InterfaceId(pub u32, pub u32);
-
-pub trait FromBytes<'a>: Sized {
-    fn parse<B: ByteOrder + KnownByteOrder>(buf: &'a [u8]) -> Result<Self>;
-}
-
-pub fn require_bytes(buf: &[u8], len: usize) -> Result<()> {
-    if buf.len() < len {
-        Err(Error::NotEnoughBytes {
-            expected: len,
-            actual: buf.len(),
-        })
-    } else {
-        Ok(())
-    }
-}
 
 /// A network interface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

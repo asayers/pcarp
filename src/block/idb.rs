@@ -1,4 +1,6 @@
-use crate::types::*;
+use crate::block::util::*;
+use crate::iface::LinkType;
+use crate::Result;
 use byteorder::ByteOrder;
 
 /// Defines the most important characteristics of the interface(s) used for capturing traffic. This

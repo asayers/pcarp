@@ -30,18 +30,56 @@ while let Some(pkt) = pcap.next() {
 */
 
 pub mod block;
-mod types;
+pub mod iface;
 
 use crate::block::*;
-use crate::types::*;
-pub use crate::types::{Error, Interface, InterfaceId, LinkType, Packet};
+use crate::iface::{Interface, InterfaceId};
 use buf_redux::policy::MinBuffered;
 use buf_redux::BufReader;
 use byteorder::{BigEndian, LittleEndian};
 use std::io::{BufRead, Read, Seek, SeekFrom};
 use std::ops::Range;
+use std::result;
 use std::time::*;
+use thiserror::Error;
 use tracing::*;
+
+pub(crate) type Result<T, E = Error> = result::Result<T, E>;
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("Didn't understand magic number {0:?}")]
+    DidntUnderstandMagicNumber([u8; 4]),
+    #[error("Not enough bytes (expected {expected}, saw {actual})")]
+    NotEnoughBytes { expected: usize, actual: usize },
+    #[error("Section didn't start with an SHB")]
+    DidntStartWithSHB,
+    #[error("Block's start and end lengths don't match")]
+    BlockLengthMismatch,
+    #[error("Block length must be at least 12 bytes")]
+    BlockLengthTooShort,
+    #[error("option_len for if_tsresol should be 1 but got {0}")]
+    WrongOptionLen(usize),
+    #[error("There were more options after an option with type 0")]
+    OptionsAfterEnd,
+    #[error("This timestamp resolution won't fit into a u32")]
+    ResolutionTooHigh,
+    #[error("IO error: {0}")]
+    IO(#[from] std::io::Error),
+}
+
+/// A single captured packet.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Packet<'a> {
+    /// The time at which the packet was captured.  The resolution depends on the interface.
+    pub timestamp: Option<SystemTime>,
+    /// The interface used to capture this packet.
+    pub interface: Option<InterfaceId>,
+    /// The raw packet data.
+    pub data: &'a [u8],
+    /// The location of the data in the underlying reader.
+    pub data_offset: Range<usize>,
+}
 
 const BUF_CAPACITY: usize = 10_000_000;
 const DEFAULT_MIN_BUFFERED: usize = 8 * 1024; // 8KB

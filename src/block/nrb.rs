@@ -1,4 +1,5 @@
-use crate::types::*;
+use crate::block::util::*;
+use crate::Result;
 use byteorder::ByteOrder;
 
 /// Defines the mapping from numeric addresses present in the packet capture and the canonical name

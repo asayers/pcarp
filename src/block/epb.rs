@@ -1,4 +1,5 @@
-use crate::types::*;
+use crate::block::util::*;
+use crate::Result;
 use byteorder::ByteOrder;
 use std::ops::Range;
 
