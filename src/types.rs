@@ -1,60 +1,32 @@
 use crate::block::*;
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
-use std::fmt;
-use std::io;
 use std::ops::Range;
 use std::result;
 use std::time::SystemTime;
+use thiserror::Error;
 
-pub type Result<T> = result::Result<T, Error>;
+pub type Result<T, E = Error> = result::Result<T, E>;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum Error {
+    #[error("Didn't understand magic number {0:?}")]
     DidntUnderstandMagicNumber([u8; 4]),
+    #[error("Not enough bytes (expected {expected}, saw {actual})")]
     NotEnoughBytes { expected: usize, actual: usize },
+    #[error("Section didn't start with an SHB")]
     DidntStartWithSHB,
+    #[error("Block's start and end lengths don't match")]
     BlockLengthMismatch,
+    #[error("Block length must be at least 12 bytes")]
     BlockLengthTooShort,
+    #[error("option_len for if_tsresol should be 1 but got {0}")]
     WrongOptionLen(usize),
+    #[error("There were more options after an option with type 0")]
     OptionsAfterEnd,
+    #[error("This timestamp resolution won't fit into a u32")]
     ResolutionTooHigh,
-    IO(io::Error),
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use Error::*;
-        match self {
-            DidntUnderstandMagicNumber(x) => write!(f, "Didn't understand magic number {:?}", x),
-            NotEnoughBytes { expected, actual } => write!(
-                f,
-                "Not enough bytes (expected {}, saw {})",
-                expected, actual
-            ),
-            DidntStartWithSHB => write!(f, "Section didn't start with an SHB"),
-            BlockLengthMismatch => write!(f, "Block's start and end lengths don't match"),
-            BlockLengthTooShort => write!(f, "Block length must be at least 12 bytes"),
-            WrongOptionLen(x) => write!(f, "option_len for if_tsresol should be 1 but got {}", x),
-            OptionsAfterEnd => write!(f, "There were more options after an option with type 0"),
-            ResolutionTooHigh => write!(f, "This timestamp resolution won't fit into a u32"),
-            IO(x) => write!(f, "IO error: {}", x),
-        }
-    }
-}
-
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Error::IO(ref x) => Some(x),
-            _ => None,
-        }
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(x: io::Error) -> Error {
-        Error::IO(x)
-    }
+    #[error("IO error: {0}")]
+    IO(#[from] std::io::Error),
 }
 
 /// A single captured packet.
