@@ -1,6 +1,6 @@
+use crate::block::opts::*;
 use crate::block::util::*;
-use crate::Result;
-use bytes::{Buf, Bytes};
+use bytes::Buf;
 use tracing::*;
 
 /// Defines the most important characteristics of the capture file.
@@ -39,10 +39,19 @@ pub struct SectionHeader {
     /// boundaries. Also, special care should be taken in accessing this field: since the alignment
     /// of all the blocks in the file is 32-bits, this field is not guaranteed to be aligned to a
     /// 64-bit boundary. This could be a problem on 64-bit processors.
-    pub section_length: i64,
-    /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
-    /// be present.
-    pub options: Bytes,
+    pub section_length: Option<u64>,
+    /// The shb_hardware option is a UTF-8 string containing the description
+    /// of the hardware used to create this section. The string is not
+    /// zero-terminated.
+    pub shb_hardware: String,
+    /// The shb_os option is a UTF-8 string containing the name of the
+    /// operating system used to create this section. The string is not
+    /// zero-terminated.
+    pub shb_os: String,
+    /// The shb_userappl option is a UTF-8 string containing the name of
+    /// the application used to create this section. The string is not
+    /// zero-terminated.
+    pub shb_userappl: String,
 }
 
 impl FromBytes for SectionHeader {
@@ -51,14 +60,35 @@ impl FromBytes for SectionHeader {
         buf.advance(4); // the endianness - we've already parsed it
         let major_version = read_u16(&mut buf, endianness);
         let minor_version = read_u16(&mut buf, endianness);
-        let section_length = read_i64(&mut buf, endianness);
-        let options = buf.copy_to_bytes(buf.remaining());
+        let section_length = match read_i64(&mut buf, endianness) {
+            -1 => None,
+            x => match u64::try_from(x) {
+                Ok(x) => Some(x),
+                Err(_) => {
+                    warn!("SHB lists the length as {x}, but this is invalid");
+                    None
+                }
+            },
+        };
+        let mut shb_hardware = String::new();
+        let mut shb_os = String::new();
+        let mut shb_userappl = String::new();
+        parse_options(buf, endianness, |option_type, option_bytes| {
+            match option_type {
+                2 => shb_hardware = String::from_utf8_lossy(&option_bytes).to_string(),
+                3 => shb_os = String::from_utf8_lossy(&option_bytes).to_string(),
+                4 => shb_userappl = String::from_utf8_lossy(&option_bytes).to_string(),
+                _ => (), // Ignore unknown
+            }
+        });
         Ok(SectionHeader {
             endianness,
             major_version,
             minor_version,
             section_length,
-            options,
+            shb_hardware,
+            shb_os,
+            shb_userappl,
         })
     }
 }

@@ -20,6 +20,7 @@ mod idb;
 mod isb;
 mod nrb;
 mod opb;
+mod opts;
 mod rdr;
 mod shb;
 mod spb;

@@ -1,3 +1,4 @@
+use crate::block::opts::*;
 use crate::block::util::*;
 use bytes::{Buf, Bytes};
 
@@ -24,10 +25,10 @@ pub struct ObsoletePacket {
     /// A local drop counter. It specifies the number of packets lost (by the interface and the
     /// operating system) between this packet and the preceding one. The value xFFFF (in
     /// hexadecimal) is reserved for those systems in which this information is not available.
-    pub drops_count: u16,
+    pub drops_count: Option<u16>,
     /// Timestamp of the packet. The format of the timestamp is the same as was already defined for
     /// the Enhanced Packet Block (Section 4.3).
-    pub timestamp: u64, // FIXME
+    pub timestamp: Timestamp,
     /// Number of octets captured from the packet (i.e. the length of the Packet Data field). It
     /// will be the minimum value among the Original Packet Length and the snapshot length for the
     /// interface (SnapLen, defined in Figure 10). The value of this field does not include the
@@ -52,12 +53,18 @@ impl FromBytes for ObsoletePacket {
     fn parse<T: Buf>(mut buf: T, endianness: Endianness) -> Result<ObsoletePacket, BlockError> {
         ensure_remaining!(buf, 20);
         let interface_id = read_u16(&mut buf, endianness);
-        let drops_count = read_u16(&mut buf, endianness);
+        let drops_count = match read_u16(&mut buf, endianness) {
+            0xFFFF => None,
+            x => Some(x),
+        };
         let timestamp = read_ts(&mut buf, endianness);
         let captured_len = read_u32(&mut buf, endianness);
         let packet_len = read_u32(&mut buf, endianness);
         let packet_data = read_bytes(&mut buf, captured_len)?;
-        let options = buf.copy_to_bytes(buf.remaining())?;
+        let mut options = vec![];
+        parse_options(buf, endianness, |option_type, option_bytes| {
+            options.push((option_type, option_bytes));
+        });
         Ok(ObsoletePacket {
             interface_id,
             drops_count,

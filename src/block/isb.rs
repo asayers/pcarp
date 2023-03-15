@@ -26,9 +26,42 @@ pub struct InterfaceStatistics {
     /// Time this statistics refers to. The format of the timestamp is the same already defined in
     /// the Enhanced Packet Block (Section 4.3).
     pub timestamp: Timestamp,
-    /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
-    /// be present.
-    pub options: Bytes,
+    /// The isb_starttime option specifies the time the capture started;
+    /// time will be stored in two blocks of four octets each. The format of
+    /// the timestamp is the same as the one defined in the Enhanced Packet
+    /// Block (Section 4.3); the length of a unit of time is specified by
+    /// the 'if_tsresol' option (see Figure 10) of the Interface Description
+    /// Block referenced by this packet.
+    pub isb_starttime: Option<Timestamp>,
+    /// The isb_endtime option specifies the time the capture ended; time
+    /// will be stored in two blocks of four octets each. The format of the
+    /// timestamp is the same as the one defined in the Enhanced Packet Block
+    /// (Section 4.3); the length of a unit of time is specified by the
+    /// 'if_tsresol' option (see Figure 10) of the Interface Description
+    /// Block referenced by this packet.
+    pub isb_endtime: Option<Timestamp>,
+    /// The isb_ifrecv option specifies the 64-bit unsigned integer number
+    /// of packets received from the physical interface starting from the
+    /// beginning of the capture.
+    pub isb_ifrecv: Option<u64>,
+    /// The isb_ifdrop option specifies the 64-bit unsigned integer number
+    /// of packets dropped by the interface due to lack of resources starting
+    /// from the beginning of the capture.
+    pub isb_ifdrop: Option<u64>,
+    /// The isb_filteraccept option specifies the 64-bit unsigned integer
+    /// number of packets accepted by filter starting from the beginning of
+    /// the capture.
+    pub isb_filter_accept: Option<u64>,
+    /// The isb_osdrop option specifies the 64-bit unsigned integer number of
+    /// packets dropped by the operating system starting from the beginning
+    /// of the capture.
+    pub isb_osdrop: Option<u64>,
+    /// The isb_usrdeliv option specifies the 64-bit unsigned integer number
+    /// of packets delivered to the user starting from the beginning of the
+    /// capture. The value contained in this field can be different from
+    /// the value 'isb_filteraccept - isb_osdrop' because some packets could
+    /// still be in the OS buffers when the capture ended.
+    pub isb_usrdeliv: Option<u64>,
 }
 
 impl FromBytes for InterfaceStatistics {
@@ -39,11 +72,37 @@ impl FromBytes for InterfaceStatistics {
         ensure_remaining!(buf, 12);
         let interface_id = read_u32(&mut buf, endianness);
         let timestamp = read_ts(&mut buf, endianness);
-        let options = buf.copy_to_bytes(buf.remaining());
+
+        let mut isb_starttime = None;
+        let mut isb_endtime = None;
+        let mut isb_ifrecv = None;
+        let mut isb_ifdrop = None;
+        let mut isb_filter_accept = None;
+        let mut isb_osdrop = None;
+        let mut isb_usrdeliv = None;
+        parse_options(buf, endianness, |ty, bytes| {
+            match ty {
+                2 => isb_starttime = bytes_to_ts(bytes, endianness),
+                3 => isb_endtime = bytes_to_ts(bytes, endianness),
+                4 => isb_ifrecv = bytes_to_u64(bytes, endianness),
+                5 => isb_ifdrop = bytes_to_u64(bytes, endianness),
+                6 => isb_filter_accept = bytes_to_u64(bytes, endianness),
+                7 => isb_osdrop = bytes_to_u64(bytes, endianness),
+                8 => isb_usrdeliv = bytes_to_u64(bytes, endianness),
+                _ => (), // Ignore unknown
+            }
+        });
+
         Ok(InterfaceStatistics {
             interface_id,
             timestamp,
-            options,
+            isb_starttime,
+            isb_endtime,
+            isb_ifrecv,
+            isb_ifdrop,
+            isb_filter_accept,
+            isb_osdrop,
+            isb_usrdeliv,
         })
     }
 }

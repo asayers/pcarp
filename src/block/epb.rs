@@ -1,3 +1,4 @@
+use crate::block::opts::*;
 use crate::block::util::*;
 use bytes::{Buf, Bytes};
 
@@ -54,9 +55,45 @@ pub struct EnhancedPacket {
     /// Block (see Section 4.2) and it is specified in the entry for that format in the the
     /// tcpdump.org link-layer header types registry.
     pub packet_data: Bytes,
-    /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
-    /// be present.
-    pub options: Bytes,
+    /// The epb_flags option is a 32-bit flags word containing link-layer
+    /// information. A complete specification of the allowed flags can be
+    /// found in Section 4.3.1.
+    pub epb_flags: u32,
+    /// The epb_hash option contains a hash of the packet. The first octet
+    /// specifies the hashing algorithm, while the following octets contain
+    /// the actual hash, whose size depends on the hashing algorithm, and
+    /// hence from the value in the first octet. The hashing algorithm can
+    /// be: 2s complement (algorithm octet = 0, size = XXX), XOR (algorithm
+    /// octet = 1, size=XXX), CRC32 (algorithm octet = 2, size = 4), MD-5
+    /// (algorithm octet = 3, size = 16), SHA-1 (algorithm octet = 4, size
+    /// = 20), Toeplitz (algorithm octet = 5, size = 4). The hash covers
+    /// only the packet, not the header added by the capture driver: this
+    /// gives the possibility to calculate it inside the network card. The
+    /// hash allows easier comparison/merging of different capture files,
+    /// and reliable data transfer between the data acquisition system and
+    /// the capture library.
+    pub epb_hash: Vec<Bytes>,
+    /// The epb_dropcount option is a 64-bit unsigned integer value specifying
+    /// the number of packets lost (by the interface and the operating system)
+    /// between this packet and the preceding one for the same interface or,
+    /// for the first packet for an interface, between this packet and the
+    /// start of the capture process.
+    pub epb_dropcount: Option<u64>,
+    /// The epb_packetid option is a 64-bit unsigned integer that uniquely
+    /// identifies the packet. If the same packet is seen by multiple
+    /// interfaces and there is a way for the capture application to correlate
+    /// them, the same epb_packetid value must be used. An example could
+    /// be a router that captures packets on all its interfaces in both
+    /// directions. When a packet hits interface A on ingress, an EPB entry
+    /// gets created, TTL gets decremented, and right before it egresses on
+    /// interface B another EPB entry gets created in the trace file. In this
+    /// case, two packets are in the capture file, which are not identical
+    /// but the epb_packetid can be used to correlate them.
+    pub epb_packetid: Option<u64>,
+    /// The epb_queue option is a 32-bit unsigned integer that identifies
+    /// on which queue of the interface the specific packet was received.
+    pub epb_queue: Option<u32>,
+    pub epb_verdict: Vec<Bytes>,
 }
 
 impl FromBytes for EnhancedPacket {
@@ -67,14 +104,41 @@ impl FromBytes for EnhancedPacket {
         let captured_len = read_u32(&mut buf, endianness);
         let packet_len = read_u32(&mut buf, endianness);
         let packet_data = read_bytes(&mut buf, captured_len)?;
-        let options = buf.copy_to_bytes(buf.remaining());
+
+        let mut epb_flags = 0;
+        let mut epb_hash = vec![];
+        let mut epb_dropcount = None;
+        let mut epb_packetid = None;
+        let mut epb_queue = None;
+        let mut epb_verdict = vec![];
+        parse_options(buf, endianness, |ty, bytes| {
+            match ty {
+                2 => {
+                    if let Some(x) = bytes_to_u32(bytes, endianness) {
+                        epb_flags = x;
+                    }
+                }
+                3 => epb_hash.push(bytes),
+                4 => epb_dropcount = bytes_to_u64(bytes, endianness),
+                5 => epb_packetid = bytes_to_u64(bytes, endianness),
+                6 => epb_queue = bytes_to_u32(bytes, endianness),
+                7 => epb_verdict.push(bytes),
+                _ => (), // Ignore unknown
+            }
+        });
+
         Ok(EnhancedPacket {
             interface_id,
             timestamp,
             captured_len,
             packet_len,
             packet_data,
-            options,
+            epb_flags,
+            epb_hash,
+            epb_dropcount,
+            epb_packetid,
+            epb_queue,
+            epb_verdict,
         })
     }
 }
