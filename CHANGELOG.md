@@ -1,3 +1,11 @@
+## 2.0.0
+
+* Make `Packet` fully owned (no lifetime parameter)
+* Change `Capture` from a streaming iterator into a normal iterator
+* Make `Capture::new()` infallible
+* Carefully distinguish between fatal and non-fatal errors
+* Expose a bunch of new info about the capture interface
+
 ## 1.4.0
 
 * Ensure interface IDs are unique within a pcap
