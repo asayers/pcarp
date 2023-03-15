@@ -17,6 +17,9 @@ for i in $(dirname "$0")/*.pcapng.xz; do
     if ! [ -f "$pcap" ]; then
         unxz <$i >$pcap
     fi
+    if ! [ -f "$pcap.expected" ]; then
+        $(dirname "$0")/gen_expected.sh $pcap >"$pcap.expected"
+    fi
     echo -ne "${YELLOW}Testing${RESET} ${pcap}... "
     if runtest "$pcap"; then
         echo -e "${GREEN}OK${RESET}"
