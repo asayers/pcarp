@@ -1,64 +1,46 @@
 # pcarp
 
-A pure-Rust library for reading pcap-ng files.
+A pure-Rust library for reading pcapng files.
 
-* _Correct_:  Agrees with `tshark` across a broad test suite.
-* _Fast_:  Zero-copy.  Performance is in `libpcap`'s ballpark.
-* _Flexible input_:  Takes anything which implements `Read`.
-* _Flexible output_: Exposes a streaming-iterator-style API.
-* _Reliable_: No panics, even on malformed input.
+* _Correct_:   Agrees with `tshark` across a [broad test suite][integration_tests/].
+* _Fast_:      Performance is similar to `libpcap`.
+* _Flexible_:  Wraps anything which implements `Read`.
+* _Ergonomic_: It's an iterator of `Packet`s - no lifetimes.
+* _Resilient_: Handles malformed pcaps as gracefully as possible.
 
 ## Limitations
 
-`pcarp` is a simple library: it reads pcap-ng files and that's it.
+`libpcap` is full of features; `pcarp` just reads packets out of pcapng files.
 Limitations compared to `libpcap`:
 
-* No support for legacy pcap;  `pcarp` is pcap-ng-only.
+* No support for legacy pcap;  `pcarp` is pcapng-only.
 * No support for writing; `pcarp` is read-only.
 * No dissection of any kind.  `pcarp` gives you the raw packet data.
-  If you want to parse ethernet/IP/TCP/whatever protocol, try [pnet] or
-  [rshark].
 * No filtering.  This one follows from "no dissection".
 
+If you want to parse ethernet/IP/TCP/whatever protocol, you need another
+library.  We use [etherparse] and it works well.  There's also [pnet] or
+[rshark], although I haven't tried them.
+
+[etherparse]: https://docs.rs/etherparse
 [pnet]: https://docs.rs/pnet
 [rshark]: https://docs.rs/rshark
 
-## API
+## Error handling
 
-Are your pcaps gzipped?  No problem: `Capture::new()` takes anything which
-implements `Read`, so just wrap your `File` in a [`GzDecoder`][2] first.
+`pcarp` is designed to be very resilient to errors, even given malformed or
+malicious input.
 
-The output API is streaming-iterator-style (`advance()` and `get()`), and
-an iterator-style API is also included for convenience.
+* If pcarp sees unexpected flags or options, it will log a warning using the
+  `tracing` crate and carry on.
+* If a packet is mangled beyond recognition, pcarp will return an error
+  instead, but subsequent packets will still be readable.
+* If pcarp encounters corruption in the framing, then the error is not
+  containable, and no more packets can be read.
 
-## Conformance
-
-The integration test suite consists of all the pcapng files I could scrape
-from the [Wireshark wiki][1].  See [integration_tests/][3] for details.
-
-## Safety
-
-It's our intention that `pcarp` should never panic, even given malformed or
-malicious input.  The library is fuzzed to help ensure that this is the case,
-but fuzzing isn't perfect.  If you experience a crash, please report it to
-the authors.
-
-It's currently possible to construct bad blocks which `pcarp` can't move past.
-In other words: you can insert one of these malformed blocks into an otherwise
-good pcap and instead of reporting a single error and moving on, `pcarp`
-will give you an infinite series of errors.  If your input is untrusted,
-don't assume that your stream will terminate.
-
-## Performance
-
-I've benchmarked the decoding time against the `pcap` library (which uses
-`libpcap`) over a variety of pcaps.  libpcap dominates the benchmarks, but not
-by a huge amount.  Interestingly, the savings come mostly from spending less
-time in the kernel.  Somehow libpcap is performing fewer syscalls than pcarp...
-
-[1]: https://wiki.wireshark.org/SampleCaptures
-[2]: https://docs.rs/flate2/*/flate2/read/struct.GzDecoder.html
-[3]: integration_tests/
+pcarp should _never_ panic.  It's fuzzed to help ensure that this is
+the case, but fuzzing isn't perfect.  If you experience a crash, please
+report it!
 
 # License
 

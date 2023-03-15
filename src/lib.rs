@@ -1,11 +1,11 @@
 /*!
-pcarp is a pure-Rust library for reading pcap-ng files.
+pcarp is a pure-Rust library for reading pcapng files.
 
 * _Correct_:  Agrees with `tshark` across a broad test suite.
-* _Fast_:  Zero-copy.  Performance is comparable to `libpcap`.
-* _Flexible input_:  Takes anything which implements `Read`.
-* _Flexible output_: Exposes a streaming-iterator-style API.
-* _Reliable_: No panics, even on malformed input.
+* _Fast_:  Performance is similar to `libpcap`.
+* _Flexible_:  Wraps anything which implements `Read`.
+* _Ergonomic_: It's an iterator of `Packet`s - no lifetimes.
+* _Resilient_: Handles malformed pcaps as gracefully as possible.
 
 See the README for more details.
 
@@ -13,19 +13,25 @@ The entry point is [`Capture`](struct.Capture.html).
 
 ## Example
 
+In this example, the pcap is compressed - but not to worry!  Since
+[`Capture::new()`] takes anything with a `Read` impl, we can just wrap our
+`File` with an `XzDecoder`.
+
 ```
 # use pcarp::Capture;
 # use std::time::*;
 # use std::io::*;
 # use std::fs::File;
-let file = File::open("integration_tests/10_sqldeveloper10_2016.pcapng.xz").unwrap();
-let uncompressed = xz2::read::XzDecoder::new(file);
-let mut pcap = Capture::new(uncompressed);
-
-for pkt in pcap {
+# use xz2::read::XzDecoder;
+# fn run() -> Result<()> {
+let path = "10_sqldeveloper10_2016.pcapng.xz";
+let file = XzDecoder::new(File::open(path)?);
+for pkt in Capture::new(file) {
     let pkt = pkt.unwrap();
     println!("{:?} {}", pkt.timestamp, pkt.data.len());
 }
+# Ok(())
+# }
 ```
 */
 

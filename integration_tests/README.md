@@ -1,15 +1,18 @@
-This directory contains "golden" tests.  We have a bunch of pcapng files, and
-for each we have a plain-text dump of its contents.  These text files have one
-line per packet, formatted like so:
+The integration test suite consists of all the pcapng files I could scrape
+from the [Wireshark wiki][wiki].  This directory contains those pcapng files,
+along with a plain-text dump of its contents (suffixed with ".expected").
+These text-dump files are formatted like so, with one line per packet:
 
     <timestamp> <data MD5>
 
-The `test_dump` example program outputs the same format.  `run.sh` is a script
-which generates ".actual" files using `test_dump` and compares them to their
-corresponding ".expected" file.  You will need to have `unxz` installed.
+The `test_dump` example program reads a pcap using pcarp and outputs the
+same textual format.  `run.sh` runs `test_dump` on the pcaps (the output is
+saved with a ".actual" suffix) and compares the two text files.
 
-If the expected file is missing, `run.sh` will first create it.  You'll need
-to have `tshark` available for this to work.
+`run.sh` requires `unxz` to be installed.  If the expected file is missing,
+`run.sh` will create it; for this it requires `tshark` to be installed.
+
+[wiki]: https://wiki.wireshark.org/SampleCaptures
 
 # License
 
