@@ -11,7 +11,7 @@ fn main() {
         "pcarp" => {
             let file = File::open(&path).unwrap();
             let mut pcap = pcarp::Capture::new(file).unwrap();
-            while let Some(pkt) = pcap.next() {
+            for pkt in pcap {
                 match pkt {
                     Ok(pkt) => {
                         let ts = pkt.timestamp.unwrap_or(SystemTime::UNIX_EPOCH);

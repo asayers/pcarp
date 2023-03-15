@@ -7,7 +7,7 @@ fn main() {
     let mut n1 = 0;
     let mut bytes1 = 0;
     let start = Instant::now();
-    while let Some(pkt) = pcap.next() {
+    for pkt in pcap {
         let pkt = pkt.unwrap();
         n1 += 1;
         bytes1 += pkt.data.len();

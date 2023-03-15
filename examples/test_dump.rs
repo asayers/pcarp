@@ -8,7 +8,7 @@ fn main() {
     let mut pcap = Capture::new(file).unwrap();
     let file = std::fs::File::open(&path).unwrap();
     let mut buf = vec![0; 1024 * 1024];
-    while let Some(pkt) = pcap.next() {
+    for pkt in pcap {
         let pkt = pkt.unwrap();
         let ts = pkt
             .timestamp

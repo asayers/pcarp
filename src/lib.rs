@@ -22,7 +22,7 @@ let file = File::open("integration_tests/10_sqldeveloper10_2016.pcapng.xz").unwr
 let uncompressed = xz2::read::XzDecoder::new(file);
 let mut pcap = Capture::new(uncompressed).unwrap();
 
-while let Some(pkt) = pcap.next() {
+for pkt in pcap {
     let pkt = pkt.unwrap();
     println!("{:?} {}", pkt.timestamp, pkt.data.len());
 }

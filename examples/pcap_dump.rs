@@ -41,11 +41,9 @@ fn main() {
     };
 
     let start = Instant::now();
-    let mut n = 0;
-    while let Some(pkt) = pcap.next() {
+    for (n, pkt) in pcap.enumerate() {
         match pkt {
             Ok(pkt) => {
-                n += 1;
                 let ts = pkt.timestamp.unwrap_or(SystemTime::UNIX_EPOCH);
                 println!(
                     "[{}] {:>5}  {}",
