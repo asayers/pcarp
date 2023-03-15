@@ -1,5 +1,4 @@
 use pcarp::*;
-use sha1::{Digest, Sha1};
 use std::os::unix::fs::FileExt;
 
 fn main() {
@@ -13,19 +12,15 @@ fn main() {
         let pkt = pkt.unwrap();
         let ts = pkt
             .timestamp
-            .unwrap()
-            .duration_since(std::time::SystemTime::UNIX_EPOCH)
             .unwrap();
         let n_bytes = pkt.data_offset.end - pkt.data_offset.start;
         file.read_exact_at(&mut buf[..n_bytes], pkt.data_offset.start as u64)
             .unwrap();
         assert_eq!(pkt.data, &buf[..n_bytes]);
         println!(
-            "{:0>10}.{:0>9} {:>6} {:x}",
-            ts.as_secs(),
-            ts.subsec_nanos(),
-            pkt.data.len(),
-            Sha1::digest(pkt.data),
+            "{}\t{:x}",
+            humantime::Timestamp::from(ts),
+            md5::compute(pkt.data),
         );
     }
 }

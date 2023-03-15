@@ -2,7 +2,7 @@ This directory contains "golden" tests.  We have a bunch of pcapng files, and
 for each we have a plain-text dump of its contents.  These text files have one
 line per packet, formatted like so:
 
-    <timestamp> <data length> <data SHA1>
+    <timestamp> <data MD5>
 
 The `test_dump` example program outputs the same format.  `run.sh` is a script
 which generates ".actual" files using `test_dump` and compares them to their
