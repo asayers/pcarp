@@ -1,7 +1,5 @@
 use crate::block::util::*;
-use crate::Result;
-use byteorder::ByteOrder;
-use std::ops::Range;
+use bytes::{Buf, Bytes};
 
 /// Contains a single captured packet, or a portion of it, with only a minimal set of information
 /// about it. If this appears in a file, an Interface Description Block is also required, before
@@ -42,17 +40,16 @@ pub struct SimplePacket {
     /// Data field depends on the LinkType field specified in the Interface Description Block (see
     /// Section 4.2) and it is specified in the entry for that format in the tcpdump.org link-layer
     /// header types registry.
-    pub packet_data: Range<usize>,
+    pub packet_data: Bytes,
 }
 
-impl<'a> FromBytes<'a> for SimplePacket {
-    fn parse<B: ByteOrder>(buf: &[u8]) -> Result<SimplePacket> {
-        require_bytes(buf, 4)?;
-        let packet_len = B::read_u32(&buf[0..4]);
-        require_bytes(buf, 4 + packet_len as usize)?;
+impl FromBytes for SimplePacket {
+    fn parse<T: Buf>(mut buf: T, endianness: Endianness) -> Result<SimplePacket, BlockError> {
+        ensure_remaining!(buf, 4);
+        let packet_len = read_u32(&mut buf, endianness);
         Ok(SimplePacket {
             packet_len,
-            packet_data: 4..4 + packet_len as usize,
+            packet_data: read_bytes(&mut buf, packet_len)?,
         })
     }
 }

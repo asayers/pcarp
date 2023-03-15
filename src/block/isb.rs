@@ -1,6 +1,6 @@
+use crate::block::opts::*;
 use crate::block::util::*;
-use crate::Result;
-use byteorder::ByteOrder;
+use bytes::Buf;
 
 /// Defines how to store some statistical data (e.g. packet dropped, etc) which can be useful to
 /// understand the conditions in which the capture has been made. If this appears in a file, an
@@ -18,28 +18,32 @@ use byteorder::ByteOrder;
 ///
 /// [1]: https://github.com/pcapng/pcapng
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct InterfaceStatistics<'a> {
+pub struct InterfaceStatistics {
     /// Specifies the interface these statistics refers to; the correct interface will be the one
     /// whose Interface Description Block (within the current Section of the file) is identified by
     /// same number (see Section 4.2) of this field.
     pub interface_id: u32,
     /// Time this statistics refers to. The format of the timestamp is the same already defined in
     /// the Enhanced Packet Block (Section 4.3).
-    pub timestamp_high: u32,
-    pub timestamp_low: u32,
+    pub timestamp: Timestamp,
     /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
     /// be present.
-    pub options: &'a [u8],
+    pub options: Bytes,
 }
 
-impl<'a> FromBytes<'a> for InterfaceStatistics<'a> {
-    fn parse<B: ByteOrder>(buf: &'a [u8]) -> Result<InterfaceStatistics<'a>> {
-        require_bytes(buf, 12)?;
+impl FromBytes for InterfaceStatistics {
+    fn parse<T: Buf>(
+        mut buf: T,
+        endianness: Endianness,
+    ) -> Result<InterfaceStatistics, BlockError> {
+        ensure_remaining!(buf, 12);
+        let interface_id = read_u32(&mut buf, endianness);
+        let timestamp = read_ts(&mut buf, endianness);
+        let options = buf.copy_to_bytes(buf.remaining());
         Ok(InterfaceStatistics {
-            interface_id: B::read_u32(&buf[0..4]),
-            timestamp_high: B::read_u32(&buf[4..8]),
-            timestamp_low: B::read_u32(&buf[8..12]),
-            options: &buf[12..],
+            interface_id,
+            timestamp,
+            options,
         })
     }
 }

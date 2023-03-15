@@ -1,8 +1,8 @@
 /*! Info and stats about the network interfaces used to capture packets */
 
-use crate::block::InterfaceDescription;
-use crate::{Error, Result};
-use byteorder::ByteOrder;
+use crate::block::{InterfaceDescription, InterfaceStatistics, Timestamp};
+use std::fmt;
+use std::time::{Duration, SystemTime};
 
 /// The type of physical link backing a network interface.
 #[allow(non_camel_case_types)]

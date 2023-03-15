@@ -1,7 +1,6 @@
-use crate::block::util::*;
 use crate::iface::LinkType;
-use crate::Result;
-use byteorder::ByteOrder;
+use bytes::Buf;
+use tracing::*;
 
 /// Defines the most important characteristics of the interface(s) used for capturing traffic. This
 /// block is required in certain cases, as described later.
@@ -33,7 +32,7 @@ use byteorder::ByteOrder;
 ///
 /// [1]: https://github.com/pcapng/pcapng
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct InterfaceDescription<'a> {
+pub struct InterfaceDescription {
     /// A value that defines the link layer type of this interface. The list of Standardized Link
     /// Layer Type codes is available in the tcpdump.org link-layer header types registry.
     pub link_type: LinkType,
@@ -42,17 +41,26 @@ pub struct InterfaceDescription<'a> {
     pub snap_len: u32,
     /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
     /// be present.
-    pub options: &'a [u8],
+    pub options: Bytes,
 }
 
-impl<'a> FromBytes<'a> for InterfaceDescription<'a> {
-    fn parse<B: ByteOrder>(buf: &'a [u8]) -> Result<InterfaceDescription<'a>> {
-        require_bytes(buf, 8)?;
-        let lt = B::read_u16(&buf[0..2]);
+impl FromBytes for InterfaceDescription {
+    fn parse<T: Buf>(
+        mut buf: T,
+        endianness: Endianness,
+    ) -> Result<InterfaceDescription, BlockError> {
+        ensure_remaining!(buf, 8);
+        let link_type = {
+            let code = read_u16(&mut buf, endianness);
+            buf.advance(2); // 16 bits of padding
+            LinkType::from_u16(code)
+        };
+        let snap_len = read_u32(&mut buf, endianness);
+        let options = buf.copy_to_bytes(buf.remaining());
         Ok(InterfaceDescription {
-            link_type: LinkType::from_u16(lt),
-            snap_len: B::read_u32(&buf[4..8]),
-            options: &buf[8..],
+            link_type,
+            snap_len,
+            options,
         })
     }
 }

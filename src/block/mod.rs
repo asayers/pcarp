@@ -15,6 +15,7 @@ the linked document. All rights reserved.
 */
 
 mod epb;
+mod frame;
 mod idb;
 mod isb;
 mod nrb;
@@ -25,6 +26,7 @@ mod spb;
 mod util;
 
 pub use self::epb::*;
+pub use self::frame::*;
 pub use self::idb::*;
 pub use self::isb::*;
 pub use self::nrb::*;
@@ -34,8 +36,7 @@ pub use self::shb::*;
 pub use self::spb::*;
 pub use self::util::*;
 
-use crate::{Error, Result};
-use byteorder::ByteOrder;
+use bytes::{Buf, Bytes};
 use tracing::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -80,89 +81,83 @@ impl From<u32> for BlockType {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Block<'a> {
-    SectionHeader(SectionHeader<'a>),
-    InterfaceDescription(InterfaceDescription<'a>),
-    ObsoletePacket(ObsoletePacket<'a>),
+pub enum Block {
+    SectionHeader(SectionHeader),
+    InterfaceDescription(InterfaceDescription),
+    ObsoletePacket(ObsoletePacket),
     SimplePacket(SimplePacket),
     NameResolution(NameResolution),
-    InterfaceStatistics(InterfaceStatistics<'a>),
-    EnhancedPacket(EnhancedPacket<'a>),
+    InterfaceStatistics(InterfaceStatistics),
+    EnhancedPacket(EnhancedPacket),
     Unparsed(BlockType),
 }
 
-impl<'a> Block<'a> {
-    pub fn parse<B: ByteOrder + KnownByteOrder>(buf: &[u8]) -> (usize, Result<Block>) {
-        if let Err(e) = require_bytes(buf, 8) {
-            // Looks like the pcap is truncated.  Let's just skip over the rest.
-            return (buf.len(), Err(e));
+impl Block {
+    pub(crate) fn parse(
+        block_type: BlockType,
+        block_data: impl Buf,
+        endianness: Endianness,
+    ) -> Result<Block, BlockError> {
+        use BlockType as BT;
+        Ok(match block_type {
+            BT::SectionHeader => SectionHeader::parse(block_data, endianness)?.into(),
+            BT::InterfaceDescription => InterfaceDescription::parse(block_data, endianness)?.into(),
+            BT::ObsoletePacket => ObsoletePacket::parse(block_data, endianness)?.into(),
+            BT::SimplePacket => SimplePacket::parse(block_data, endianness)?.into(),
+            BT::NameResolution => NameResolution::parse(block_data, endianness)?.into(),
+            BT::InterfaceStatistics => InterfaceStatistics::parse(block_data, endianness)?.into(),
+            BT::EnhancedPacket => EnhancedPacket::parse(block_data, endianness)?.into(),
+            _ => Block::Unparsed(block_type),
+        })
+    }
+
+    pub(crate) fn into_pkt(self) -> Option<(Option<(Timestamp, u32)>, Bytes)> {
+        match self {
+            Block::EnhancedPacket(pkt) => {
+                Some((Some((pkt.timestamp, pkt.interface_id)), pkt.packet_data))
+            }
+            Block::SimplePacket(pkt) => Some((None, pkt.packet_data)),
+            Block::ObsoletePacket(pkt) => Some((
+                Some((pkt.timestamp, u32::from(pkt.interface_id))),
+                pkt.packet_data,
+            )),
+            _ => None,
         }
-        let block_type = BlockType::from(B::read_u32(&buf[..4]));
-        let block_length = B::read_u32(&buf[4..8]) as usize;
-        let block = || {
-            if block_length < 12 {
-                return Err(Error::BlockLengthTooShort);
-            }
-            require_bytes(buf, block_length)?;
-            trace!(
-                "Got a complete block: type {:x}, len {}",
-                block_type,
-                block_length
-            );
-            let body = &buf[8..block_length - 4];
-            let block_length_2 = B::read_u32(&buf[block_length - 4..block_length]) as usize;
-            if block_length != block_length_2 {
-                return Err(Error::BlockLengthMismatch);
-            }
-            use BlockType as BT;
-            let block = match block_type {
-                BT::SectionHeader => SectionHeader::parse(block_data, endianness)?.into(),
-                BT::InterfaceDescription => InterfaceDescription::parse(block_data, endianness)?.into(),
-                BT::ObsoletePacket => ObsoletePacket::parse(block_data, endianness)?.into(),
-                BT::SimplePacket => SimplePacket::parse(block_data, endianness)?.into(),
-                BT::NameResolution => NameResolution::parse(block_data, endianness)?.into(),
-                BT::InterfaceStatistics => InterfaceStatistics::parse(block_data, endianness)?.into(),
-                BT::EnhancedPacket => EnhancedPacket::parse(block_data, endianness)?.into(),
-                _ => Block::Unparsed(block_type),
-            };
-            Ok(block)
-        };
-        (block_length, block())
     }
 }
 
-impl<'a> From<SectionHeader<'a>> for Block<'a> {
-    fn from(x: SectionHeader<'a>) -> Self {
+impl From<SectionHeader> for Block {
+    fn from(x: SectionHeader) -> Self {
         Block::SectionHeader(x)
     }
 }
-impl<'a> From<InterfaceDescription<'a>> for Block<'a> {
-    fn from(x: InterfaceDescription<'a>) -> Self {
+impl From<InterfaceDescription> for Block {
+    fn from(x: InterfaceDescription) -> Self {
         Block::InterfaceDescription(x)
     }
 }
-impl<'a> From<ObsoletePacket<'a>> for Block<'a> {
-    fn from(x: ObsoletePacket<'a>) -> Self {
+impl From<ObsoletePacket> for Block {
+    fn from(x: ObsoletePacket) -> Self {
         Block::ObsoletePacket(x)
     }
 }
-impl<'a> From<SimplePacket> for Block<'a> {
+impl From<SimplePacket> for Block {
     fn from(x: SimplePacket) -> Self {
         Block::SimplePacket(x)
     }
 }
-impl<'a> From<NameResolution> for Block<'a> {
+impl From<NameResolution> for Block {
     fn from(x: NameResolution) -> Self {
         Block::NameResolution(x)
     }
 }
-impl<'a> From<InterfaceStatistics<'a>> for Block<'a> {
-    fn from(x: InterfaceStatistics<'a>) -> Self {
+impl From<InterfaceStatistics> for Block {
+    fn from(x: InterfaceStatistics) -> Self {
         Block::InterfaceStatistics(x)
     }
 }
-impl<'a> From<EnhancedPacket<'a>> for Block<'a> {
-    fn from(x: EnhancedPacket<'a>) -> Self {
+impl From<EnhancedPacket> for Block {
+    fn from(x: EnhancedPacket) -> Self {
         Block::EnhancedPacket(x)
     }
 }

@@ -1,6 +1,7 @@
 use crate::block::util::*;
 use crate::Result;
-use byteorder::ByteOrder;
+use bytes::{Buf, Bytes};
+use tracing::*;
 
 /// Defines the most important characteristics of the capture file.
 ///
@@ -14,7 +15,7 @@ use byteorder::ByteOrder;
 ///
 /// [1]: https://github.com/pcapng/pcapng
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct SectionHeader<'a> {
+pub struct SectionHeader {
     /// Used to distinguish sections that have been saved on little-endian machines from the ones
     /// saved on big-endian machines.
     pub endianness: Endianness,
@@ -41,18 +42,23 @@ pub struct SectionHeader<'a> {
     pub section_length: i64,
     /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
     /// be present.
-    pub options: &'a [u8],
+    pub options: Bytes,
 }
 
-impl<'a> FromBytes<'a> for SectionHeader<'a> {
-    fn parse<B: ByteOrder + KnownByteOrder>(buf: &'a [u8]) -> Result<SectionHeader<'a>> {
-        require_bytes(buf, 16)?;
+impl FromBytes for SectionHeader {
+    fn parse<T: Buf>(mut buf: T, endianness: Endianness) -> Result<SectionHeader, BlockError> {
+        ensure_remaining!(buf, 12);
+        buf.advance(4); // the endianness - we've already parsed it
+        let major_version = read_u16(&mut buf, endianness);
+        let minor_version = read_u16(&mut buf, endianness);
+        let section_length = read_i64(&mut buf, endianness);
+        let options = buf.copy_to_bytes(buf.remaining());
         Ok(SectionHeader {
-            endianness: B::endianness(),
-            major_version: B::read_u16(&buf[4..6]),
-            minor_version: B::read_u16(&buf[6..8]),
-            section_length: B::read_i64(&buf[8..16]),
-            options: &buf[16..],
+            endianness,
+            major_version,
+            minor_version,
+            section_length,
+            options,
         })
     }
 }

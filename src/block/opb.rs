@@ -1,7 +1,5 @@
 use crate::block::util::*;
-use crate::Result;
-use byteorder::ByteOrder;
-use std::ops::Range;
+use bytes::{Buf, Bytes};
 
 /// Contains a single captured packet, or a portion of it. It is OBSOLETE, and superseded by the
 /// Enhanced Packet Block.
@@ -17,12 +15,12 @@ use std::ops::Range;
 ///
 /// [1]: https://github.com/pcapng/pcapng
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct ObsoletePacket<'a> {
+pub struct ObsoletePacket {
     /// Specifies the interface this packet comes from; the correct interface will be the one whose
     /// Interface Description Block (within the current Section of the file) is identified by the
     /// same number (see Section 4.2) of this field. The interface ID MUST be valid, which means
     /// that an matching interface description block MUST exist.
-    pub interface_id: u32,
+    pub interface_id: u16,
     /// A local drop counter. It specifies the number of packets lost (by the interface and the
     /// operating system) between this packet and the preceding one. The value xFFFF (in
     /// hexadecimal) is reserved for those systems in which this information is not available.
@@ -44,27 +42,30 @@ pub struct ObsoletePacket<'a> {
     /// link-layer headers depends on the LinkType field specified in the Interface Description
     /// Block (see Section 4.2) and it is specified in the entry for that format in the the
     /// tcpdump.org link-layer header types registry.
-    pub packet_data: Range<usize>,
+    pub packet_data: Bytes,
     /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
     /// be present.
-    pub options: &'a [u8],
+    pub options: Vec<(u16, Bytes)>,
 }
 
-impl<'a> FromBytes<'a> for ObsoletePacket<'a> {
-    fn parse<B: ByteOrder>(buf: &'a [u8]) -> Result<ObsoletePacket<'a>> {
-        require_bytes(buf, 16)?;
-        let captured_len = B::read_u32(&buf[12..16]);
-        require_bytes(buf, 20 + captured_len as usize)?;
-        let timestamp_high = B::read_u32(&buf[4..8]);
-        let timestamp_low = B::read_u32(&buf[8..12]);
+impl FromBytes for ObsoletePacket {
+    fn parse<T: Buf>(mut buf: T, endianness: Endianness) -> Result<ObsoletePacket, BlockError> {
+        ensure_remaining!(buf, 20);
+        let interface_id = read_u16(&mut buf, endianness);
+        let drops_count = read_u16(&mut buf, endianness);
+        let timestamp = read_ts(&mut buf, endianness);
+        let captured_len = read_u32(&mut buf, endianness);
+        let packet_len = read_u32(&mut buf, endianness);
+        let packet_data = read_bytes(&mut buf, captured_len)?;
+        let options = buf.copy_to_bytes(buf.remaining())?;
         Ok(ObsoletePacket {
-            interface_id: u32::from(B::read_u16(&buf[0..2])),
-            drops_count: B::read_u16(&buf[2..4]),
-            timestamp: (u64::from(timestamp_high) << 4) + u64::from(timestamp_low),
+            interface_id,
+            drops_count,
+            timestamp,
             captured_len,
-            packet_len: B::read_u32(&buf[16..20]),
-            packet_data: 20..20 + captured_len as usize,
-            options: &buf[20 + captured_len as usize..],
+            packet_len,
+            packet_data,
+            options,
         })
     }
 }

@@ -1,135 +1,124 @@
+use crate::block::frame::*;
 use crate::block::*;
-use crate::types::Result;
-use crate::util::*;
+use crate::{Error, Result};
 use bytes::{Buf, Bytes, BytesMut};
 use std::io::Read;
 use std::io::{Seek, SeekFrom};
 
-/// Look for a complete frame at the front of the given buffer
-///
-/// If the buffer contains a complete frame, this function returns the block
-/// type and data length.  If the buffer is empty or contains an incomplete
-/// frame, it returns `None`.  If the buffer contains an invalid frame,
-/// it returns an error.  Such errors should be treated as fatal.
-pub fn parse_frame(buf: &[u8], endianness: &mut Endianness) -> Result<Option<(BlockType, usize)>> {
-    // Even a block with an empty body would be 12 bytes long:
-    //
-    //     type (4) + len (4) + body (0) + len (4) = 12
-    //
-    // So this check doesn't rule out any blocks.
-    //
-    // Furthermore, this is enough to cover the first two get_u32()s, and
-    // also the magic bytes in the case of an SHB.
-    if buf.len() < 12 {
-        return Ok(None);
-    }
-
-    let read_u32 = |i: usize, endianness: Endianness| -> u32 {
-        match endianness {
-            Endianness::Big => (&buf[i..i + 4]).get_u32(),
-            Endianness::Little => (&buf[i..i + 4]).get_u32_le(),
-        }
-    };
-
-    let block_type = read_u32(0, *endianness);
-    if block_type == 0x0A0D_0D0A {
-        // We have a new section coming up.  We may need to change the
-        // endianness.
-        *endianness = match &buf[8..12] {
-            &[0x1A, 0x2B, 0x3C, 0x4D] => Endianness::Big,
-            &[0x4D, 0x3C, 0x2B, 0x1A] => Endianness::Little,
-            x => return Err(Error::DidntUnderstandMagicNumber(x.try_into().unwrap())),
-        };
-        trace!("Found SHB; setting endianness to {:?}", *endianness);
-    }
-    let block_type = BlockType::from(block_type);
-
-    let block_len = read_u32(4, *endianness) as usize;
-    if block_len < 12 {
-        return Err(Error::BlockLengthMismatch); // TODO
-    }
-    if buf.len() < block_len {
-        return Ok(None);
-    }
-
-    let block_len_2 = read_u32(block_len - 4, *endianness) as usize;
-    if block_len != block_len_2 {
-        return Err(Error::BlockLengthMismatch);
-    }
-
-    let data_len = block_len - 12;
-    Ok(Some((block_type, data_len)))
-}
-
 /// An iterator that reads blocks from a pcap
 pub struct BlockReader<R> {
-    rdr: BufReader<R, MinBuffered>,
-    n_bytes_read: usize,
-    finished: bool,
+    rdr: R,
+    buf: Bytes,
+    /// Whether an unrecoverable error has occurred
+    dead: bool,
     /// Endianness of the current section
     endianness: Endianness,
-    last_block_len: usize,
-    current_data: Range<usize>,
 }
 
-impl<R: Read> BlockReader<R> {
-    pub(crate) const BUF_CAPACITY: usize = 10_000_000;
-    pub(crate) const DEFAULT_MIN_BUFFERED: usize = 8 * 1024; // 8KB
+impl<R> BlockReader<R> {
+    pub(crate) const BUF_CAPACITY: usize = 8 * 1024; // 8KiB
 
     /// Create a new `BlockReader`.
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(rdr: R) -> Result<BlockReader<R>> {
-        let mut rdr = BufReader::with_capacity(BUF_CAPACITY, rdr)
-            .set_policy(MinBuffered(DEFAULT_MIN_BUFFERED));
-        let endianness = peek_for_shb(rdr.fill_buf()?)?.ok_or(Error::DidntStartWithSHB)?;
-        Ok(BlockReader {
+    pub fn new(rdr: R) -> BlockReader<R> {
+        BlockReader {
             rdr,
-            finished: false,
-            endianness,
-            last_block_len: 0,
-            current_data: 0..0,
-        })
+            buf: Bytes::new(),
+            dead: false,
+            endianness: Endianness::Little, // arbitrary
+        }
     }
 
     /// Rewind to the beginning of the pcapng file
-    pub fn rewind(&mut self) -> Result<()>
+    pub fn rewind(&mut self) -> std::io::Result<()>
     where
         R: Seek,
     {
         self.rdr.seek(SeekFrom::Start(0))?;
-        self.finished = false;
-        self.endianness = peek_for_shb(self.rdr.fill_buf()?)?.ok_or(Error::DidntStartWithSHB)?;
-        self.last_block_len = 0;
-        self.current_data = 0..0;
+        self.buf = Bytes::new();
+        self.dead = false;
+        self.endianness = Endianness::Little;
         Ok(())
-    }
-
-    pub fn advance(&mut self) -> Result<()> {
-        loop {
-            // Look at the length of the _last_ block, to see how much data to discard
-            self.rdr.consume(self.last_block_len);
-            self.n_bytes_read += self.last_block_len;
-
-            // Fill the buffer up - hopefully we'll have enough data for the next block!
-            let buf = self.rdr.fill_buf()?;
-            if buf.is_empty() {
-                self.last_block_len = 0;
-                self.finished = true;
-                return Ok(());
-            }
-        }
     }
 }
 
-/// First we just need to check if it's an SHB, and set the endinanness if it is. This function
-/// doesn't consume anything from the buffer, it just peeks.
-fn peek_for_shb(buf: &[u8]) -> Result<Option<Endianness>> {
-    require_bytes(buf, 4)?;
-    let block_type = &buf[..4];
-    if block_type != [0x0A, 0x0D, 0x0D, 0x0A] {
-        return Ok(None);
+impl<R: Read> Iterator for BlockReader<R> {
+    type Item = Result<Block>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.try_next().transpose()
     }
-    require_bytes(buf, 12)?;
-    let endianness = Endianness::parse_from_magic(&buf[8..12])?;
-    Ok(Some(endianness))
+}
+
+impl<R: Read> BlockReader<R> {
+    /// In the event of an IO error, no state is modified.  It should be
+    /// safe to just try again.
+    fn fill_buf(&mut self) -> std::io::Result<usize> {
+        // This is evil because it relies on R's read() being correctly
+        // implemented for safety.
+        let n_leftover = self.buf.len();
+        let mut new_buf = BytesMut::zeroed(Self::BUF_CAPACITY + n_leftover);
+        new_buf[..n_leftover].copy_from_slice(&self.buf);
+        let n_read = self.rdr.read(&mut new_buf[n_leftover..])?;
+        new_buf.truncate(n_leftover + n_read);
+        self.buf = new_buf.freeze();
+        Ok(n_read)
+    }
+
+    // It's faster than fill_buf().  However, it's evil because it relies on
+    // `R::read()` being sanely implemented for safety.  The `Read` docs
+    // explicitly say not to do this.
+    //
+    // Concretely, if `R::read()` peeks at the buffer, it will see
+    // uninitialized memory.  If `R::read()` claims to have written more
+    // bytes than it actually did, we'll try to parse some uninitialized
+    // memory later.  In either case, it's UB.
+    //
+    // fn fill_buf_evil(&mut self) -> std::io::Result<usize> {
+    //     use bytes::BufMut;
+    //     self.buf.reserve(Self::BUF_CAPACITY / 2);
+    //     let dst = self.buf.chunk_mut();
+    //     let dst = unsafe { &mut *(dst as *mut _ as *mut [std::mem::MaybeUninit<u8>] as *mut [u8]) };
+    //     let n_read = self.rdr.read(dst)?;
+    //     unsafe {
+    //         self.buf.advance_mut(n_read);
+    //     }
+    //     Ok(n_read)
+    // }
+
+    /// Get the next block.
+    pub(crate) fn try_next(&mut self) -> Result<Option<Block>> {
+        if self.dead {
+            return Ok(None);
+        }
+        loop {
+            match parse_frame(self.buf.chunk(), &mut self.endianness) {
+                Ok(Some((block_type, data_len))) => {
+                    self.buf.advance(8);
+                    let block_data = self.buf.copy_to_bytes(data_len);
+                    self.buf.advance(4);
+                    trace!("Saw a complete {block_type:?} block, len {data_len}");
+                    match Block::parse(block_type, block_data, self.endianness) {
+                        Ok(block) => {
+                            trace!("Parsed block as {block:?}");
+                            return Ok(Some(block));
+                        }
+                        Err(e) => return Err(Error::Block(block_type, e)),
+                    }
+                }
+                Err(e) => {
+                    // Framing errors are unrecoverable
+                    self.dead = true;
+                    return Err(e.into());
+                }
+                Ok(None) => {
+                    let n_read = self.fill_buf()?;
+                    debug!("Read {n_read} bytes");
+                    if n_read == 0 {
+                        return Ok(None);
+                    } else {
+                        continue;
+                    }
+                }
+            }
+        }
+    }
 }

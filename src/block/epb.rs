@@ -1,7 +1,5 @@
 use crate::block::util::*;
-use crate::Result;
-use byteorder::ByteOrder;
-use std::ops::Range;
+use bytes::{Buf, Bytes};
 
 /// Contains a single captured packet, or a portion of it. It represents an evolution of the
 /// original, now obsolete, Packet Block. If this appears in a file, an Interface Description Block
@@ -26,7 +24,7 @@ use std::ops::Range;
 ///
 /// [1]: https://github.com/pcapng/pcapng
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct EnhancedPacket<'a> {
+pub struct EnhancedPacket {
     /// Specifies the interface this packet comes from; the correct interface will be the one whose
     /// Interface Description Block (within the current Section of the file) is identified by the
     /// same number (see Section 4.2) of this field. The interface ID MUST be valid, which means
@@ -40,7 +38,7 @@ pub struct EnhancedPacket<'a> {
     /// are not saved as two 32-bit values that represent the seconds and microseconds that have
     /// elapsed since 1970-01-01 00:00:00 UTC. Timestamps in Enhanced Packet Blocks are saved as
     /// two 32-bit words that represent the upper and lower 32 bits of a single 64-bit quantity.
-    pub timestamp: u64,
+    pub timestamp: Timestamp,
     /// Number of octets captured from the packet (i.e. the length of the Packet Data field). It
     /// will be the minimum value among the Original Packet Length and the snapshot length for the
     /// interface (SnapLen, defined in Figure 10). The value of this field does not include the
@@ -55,26 +53,28 @@ pub struct EnhancedPacket<'a> {
     /// link-layer headers depends on the LinkType field specified in the Interface Description
     /// Block (see Section 4.2) and it is specified in the entry for that format in the the
     /// tcpdump.org link-layer header types registry.
-    pub packet_data: Range<usize>,
+    pub packet_data: Bytes,
     /// Optionally, a list of options (formatted according to the rules defined in Section 3.5) can
     /// be present.
-    pub options: &'a [u8],
+    pub options: Bytes,
 }
 
-impl<'a> FromBytes<'a> for EnhancedPacket<'a> {
-    fn parse<B: ByteOrder>(buf: &'a [u8]) -> Result<EnhancedPacket<'a>> {
-        require_bytes(buf, 16)?;
-        let captured_len = B::read_u32(&buf[12..16]);
-        require_bytes(buf, 20 + captured_len as usize)?;
-        let timestamp_high = B::read_u32(&buf[4..8]);
-        let timestamp_low = B::read_u32(&buf[8..12]);
+impl FromBytes for EnhancedPacket {
+    fn parse<T: Buf>(mut buf: T, endianness: Endianness) -> Result<EnhancedPacket, BlockError> {
+        ensure_remaining!(buf, 20);
+        let interface_id = read_u32(&mut buf, endianness);
+        let timestamp = read_ts(&mut buf, endianness);
+        let captured_len = read_u32(&mut buf, endianness);
+        let packet_len = read_u32(&mut buf, endianness);
+        let packet_data = read_bytes(&mut buf, captured_len)?;
+        let options = buf.copy_to_bytes(buf.remaining());
         Ok(EnhancedPacket {
-            interface_id: B::read_u32(&buf[0..4]),
-            timestamp: (u64::from(timestamp_high) << 32) + u64::from(timestamp_low),
+            interface_id,
+            timestamp,
             captured_len,
-            packet_len: B::read_u32(&buf[16..20]),
-            packet_data: 20..20 + captured_len as usize,
-            options: &buf[20 + captured_len as usize..],
+            packet_len,
+            packet_data,
+            options,
         })
     }
 }

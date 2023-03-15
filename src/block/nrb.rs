@@ -1,6 +1,5 @@
 use crate::block::util::*;
-use crate::Result;
-use byteorder::ByteOrder;
+use bytes::{Buf, Bytes};
 
 /// Defines the mapping from numeric addresses present in the packet capture and the canonical name
 /// counterpart.
@@ -34,13 +33,13 @@ pub struct NameResolution {
     /// Zero or more Name Resolution Records (in the TLV format), each of which contains an
     /// association between a network address and a name. An nrb_record_end MUST be added after the
     /// last Record, and MUST exist even if there are no other Records in the NRB.
-    pub record_values: Vec<u8>, // TODO
+    pub record_values: Bytes, // TODO
 }
 
-impl<'a> FromBytes<'a> for NameResolution {
-    fn parse<B: ByteOrder>(buf: &[u8]) -> Result<NameResolution> {
+impl FromBytes for NameResolution {
+    fn parse<T: Buf>(mut buf: T, _endianness: Endianness) -> Result<NameResolution, BlockError> {
         Ok(NameResolution {
-            record_values: Vec::from(buf),
+            record_values: buf.copy_to_bytes(buf.remaining()),
         })
     }
 }
