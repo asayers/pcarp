@@ -124,11 +124,11 @@ impl<R> Capture<R> {
     ///
     /// Note: Only shows info for the interfaces in the current section of
     /// the pcap.
-    pub fn lookup_interface(&self, interface_id: InterfaceId) -> Option<&Interface> {
+    pub fn lookup_interface(&self, interface_id: InterfaceId) -> Option<&InterfaceInfo> {
         if interface_id.0 != self.current_section {
             None
         } else {
-            self.interfaces.get(interface_id.1 as usize)
+            self.interfaces.get(interface_id.1 as usize)?.as_ref()
         }
     }
 }

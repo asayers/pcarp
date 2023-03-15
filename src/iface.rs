@@ -4,7 +4,11 @@ use crate::block::{InterfaceDescription, InterfaceStatistics, Timestamp};
 use std::fmt;
 use std::time::{Duration, SystemTime};
 
-/// The type of physical link backing a network interface.
+/// The type of physical link backing a network interface
+///
+/// You can find the lastest list [here][reference].
+///
+/// [reference]: https://github.com/IETF-OPSAWG-WG/draft-ietf-opsawg-pcap/blob/master/linktypes.csv
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum LinkType {
@@ -239,72 +243,210 @@ impl LinkType {
 pub struct InterfaceId(pub u32, pub u32);
 
 /// A network interface.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Interface {
-    pub id: InterfaceId,
-    pub link_type: LinkType,
-    /// The if_tsresol option identifies the resolution of timestamps. If the Most Significant Bit
-    /// is equal to zero, the remaining bits indicates the resolution of the timestamp as a negative
-    /// power of 10 (e.g. 6 means microsecond resolution, timestamps are the number of microseconds
-    /// since 1/1/1970). If the Most Significant Bit is equal to one, the remaining bits indicates
-    /// the resolution as as negative power of 2 (e.g. 10 means 1/1024 of second). If this option is
-    /// not present, a resolution of 10^-6 is assumed (i.e. timestamps have the same resolution of
-    /// the standard 'libpcap' timestamps).
-    pub units_per_sec: u32,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InterfaceInfo {
+    pub(crate) descr: InterfaceDescription,
+    pub(crate) stats: Option<InterfaceStatistics>,
 }
 
-impl Interface {
-    pub(crate) fn from_desc<B: ByteOrder>(
-        id: InterfaceId,
-        desc: &InterfaceDescription,
-    ) -> Result<Interface> {
-        let mut units_per_sec = 1_000_000;
-        let mut i = 0;
-        loop {
-            if desc.options.len() < i + 4 {
-                // no further options
-                break;
-            }
-            let option_type = B::read_u16(&desc.options[i..i + 2]);
-            i += 2;
-            let option_len = B::read_u16(&desc.options[i..i + 2]) as usize;
-            i += 2;
-            match option_type {
-                0 => {
-                    // end of options
-                    if i != desc.options.len() {
-                        return Err(Error::OptionsAfterEnd);
-                    }
-                    break;
-                }
-                9 => {
-                    // if_tsresol
-                    if option_len != 1 {
-                        return Err(Error::WrongOptionLen(option_len));
-                    }
-                    let v = desc.options[i];
-                    let exp = u32::from(v & 0b0111_1111);
-                    match v >> 7 {
-                        0 => {
-                            units_per_sec =
-                                10_u32.checked_pow(exp).ok_or(Error::ResolutionTooHigh)?
-                        }
-                        1 => {
-                            units_per_sec =
-                                2_u32.checked_pow(exp).ok_or(Error::ResolutionTooHigh)?
-                        }
-                        _ => { /* impossible */ }
-                    }
-                }
-                _ => { /* skip other option types */ }
-            }
-            let padding_len = (4 - option_len % 4) % 4;
-            i += option_len + padding_len;
+impl InterfaceInfo {
+    pub(crate) fn resolve_ts(&self, ts: Timestamp) -> SystemTime {
+        let units_per_sec = u64::from(self.descr.if_tsresol);
+        let secs = ts.0 / units_per_sec;
+        let nanos = ((ts.0 % units_per_sec) * 1_000_000_000 / units_per_sec) as u32;
+        SystemTime::UNIX_EPOCH + Duration::new(secs, nanos)
+    }
+}
+
+impl InterfaceInfo {
+    pub fn link_type(&self) -> LinkType {
+        self.descr.link_type
+    }
+
+    pub fn snap_len(&self) -> Option<u32> {
+        self.descr.snap_len
+    }
+
+    pub fn name(&self) -> &str {
+        &self.descr.if_name
+    }
+
+    pub fn description(&self) -> &str {
+        &self.descr.if_description
+    }
+
+    // TODO: Fix type
+    pub fn ipv4_addrs(&self) -> &[[u8; 8]] {
+        &self.descr.if_ipv4_addr
+    }
+
+    // TODO: Fix type
+    pub fn ipv6_addrs(&self) -> &[[u8; 17]] {
+        &self.descr.if_ipv6_addr
+    }
+
+    // TODO: Fix type
+    pub fn mac_addr(&self) -> Option<[u8; 6]> {
+        self.descr.if_mac_addr
+    }
+
+    // TODO: Fix type
+    pub fn eui_addr(&self) -> Option<[u8; 8]> {
+        self.descr.if_eui_addr
+    }
+
+    pub fn speed(&self) -> Option<u64> {
+        self.descr.if_speed
+    }
+
+    // TODO: Fix type
+    pub fn tzone(&self) -> Option<[u8; 4]> {
+        self.descr.if_tzone
+    }
+
+    pub fn filter(&self) -> &str {
+        &self.descr.if_filter
+    }
+
+    pub fn os(&self) -> &str {
+        &self.descr.if_os
+    }
+
+    // TODO: Fix type
+    pub fn fcslen(&self) -> Option<[u8; 1]> {
+        self.descr.if_fcslen
+    }
+
+    // TODO: Fix type
+    pub fn tsoffset(&self) -> Option<[u8; 8]> {
+        self.descr.if_tsoffset
+    }
+
+    pub fn hardware(&self) -> &str {
+        &self.descr.if_hardware
+    }
+
+    // TODO: Fix type
+    pub fn txspeed(&self) -> Option<[u8; 8]> {
+        self.descr.if_txspeed
+    }
+
+    // TODO: Fix type
+    pub fn rxspeed(&self) -> Option<[u8; 8]> {
+        self.descr.if_rxspeed
+    }
+
+    pub fn stats_timestamp(&self) -> Option<SystemTime> {
+        self.stats
+            .as_ref()
+            .map(|stats| self.resolve_ts(stats.timestamp))
+    }
+
+    pub fn starttime(&self) -> Option<SystemTime> {
+        self.stats
+            .as_ref()
+            .and_then(|stats| stats.isb_starttime)
+            .map(|ts| self.resolve_ts(ts))
+    }
+
+    pub fn endtime(&self) -> Option<SystemTime> {
+        self.stats
+            .as_ref()
+            .and_then(|stats| stats.isb_endtime)
+            .map(|ts| self.resolve_ts(ts))
+    }
+
+    pub fn ifrecv(&self) -> Option<u64> {
+        self.stats.as_ref().and_then(|stats| stats.isb_ifrecv)
+    }
+
+    pub fn ifdrop(&self) -> Option<u64> {
+        self.stats.as_ref().and_then(|stats| stats.isb_ifdrop)
+    }
+
+    pub fn filter_accept(&self) -> Option<u64> {
+        self.stats
+            .as_ref()
+            .and_then(|stats| stats.isb_filter_accept)
+    }
+
+    pub fn osdrop(&self) -> Option<u64> {
+        self.stats.as_ref().and_then(|stats| stats.isb_osdrop)
+    }
+
+    pub fn usrdeliv(&self) -> Option<u64> {
+        self.stats.as_ref().and_then(|stats| stats.isb_usrdeliv)
+    }
+}
+
+impl fmt::Display for InterfaceInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "{} ({})", self.name(), self.description())?;
+        if !self.filter().is_empty() {
+            writeln!(f, "filter: {}", self.filter())?;
         }
-        Ok(Interface {
-            id,
-            link_type: desc.link_type,
-            units_per_sec,
-        })
+        if !self.os().is_empty() {
+            writeln!(f, "OS: {}", self.os())?;
+        }
+        if !self.hardware().is_empty() {
+            writeln!(f, "hardware: {}", self.hardware())?;
+        }
+        if self.ipv4_addrs().len() + self.ipv6_addrs().len() > 0 {
+            writeln!(
+                f,
+                "ip addrs: {:?} {:?}",
+                self.ipv4_addrs(),
+                self.ipv6_addrs(),
+            )?;
+        }
+        if let Some(x) = self.mac_addr() {
+            writeln!(f, "MAC addr: {x:?}")?;
+        }
+        if let Some(x) = self.eui_addr() {
+            writeln!(f, "EUI addr: {x:?}")?;
+        }
+        if let Some(x) = self.speed() {
+            writeln!(f, "speed: {x}")?;
+        }
+        if let Some(x) = self.tzone() {
+            writeln!(f, "tzone: {x:?}")?;
+        }
+        if let Some(x) = self.fcslen() {
+            writeln!(f, "fcslen: {x:?}")?;
+        }
+        if let Some(x) = self.tsoffset() {
+            writeln!(f, "tsoffset: {x:?}")?;
+        }
+        if let Some(x) = self.txspeed() {
+            writeln!(f, "txspeed: {x:?}")?;
+        }
+        if let Some(x) = self.rxspeed() {
+            writeln!(f, "rxspeed: {x:?}")?;
+        }
+        if let Some(x) = self.stats_timestamp() {
+            writeln!(f, "stats_timestamp: {x:?}")?; // humantime::Timestamp::from(x)
+        }
+        if let Some(x) = self.starttime() {
+            writeln!(f, "starttime: {x:?}")?; // humantime::Timestamp::from(x)
+        }
+        if let Some(x) = self.endtime() {
+            writeln!(f, "endtime: {x:?}")?; // humantime::Timestamp::from(x)
+        }
+        if let Some(x) = self.ifrecv() {
+            writeln!(f, "ifrecv: {x}")?;
+        }
+        if let Some(x) = self.ifdrop() {
+            writeln!(f, "ifdrop: {x}")?;
+        }
+        if let Some(x) = self.filter_accept() {
+            writeln!(f, "filter_accept: {x}")?;
+        }
+        if let Some(x) = self.osdrop() {
+            writeln!(f, "osdrop: {x}")?;
+        }
+        if let Some(x) = self.usrdeliv() {
+            writeln!(f, "usrdeliv: {x}")?;
+        }
+        Ok(())
     }
 }
