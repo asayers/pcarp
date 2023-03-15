@@ -35,24 +35,24 @@ fn main() {
     let pcap = Capture::new(reader);
     let start = Instant::now();
     for (n, pkt) in pcap.enumerate() {
-        match pkt {
-            Ok(pkt) => {
-                let ts = pkt.timestamp.unwrap_or(SystemTime::UNIX_EPOCH);
-                println!(
-                    "[{}] {:>5}  {}",
-                    humantime::format_rfc3339_nanos(ts),
-                    pkt.data.len(),
-                    sanitize(pkt.data)
-                );
-                if n % 1000 == 0 {
-                    let nanos = start.elapsed().subsec_nanos();
-                    let bps = f64::from(n) * 1_000_000_000.0 / f64::from(nanos);
-                    info!("Read {} blocks at {} pps", n, bps);
-                }
-            }
+        let pkt = match pkt {
+            Ok(pkt) => pkt,
             Err(e) => {
-                eprintln!("{}", e);
+                eprintln!("{e}");
+                continue;
             }
+        };
+        let ts = pkt.timestamp.unwrap_or(SystemTime::UNIX_EPOCH);
+        println!(
+            "[{}] {:>5}  {}",
+            humantime::format_rfc3339_nanos(ts),
+            pkt.data.len(),
+            sanitize(&pkt.data)
+        );
+        if n % 1000 == 0 {
+            let nanos = start.elapsed().subsec_nanos();
+            let bps = n as f64 * 1_000_000_000.0 / f64::from(nanos);
+            info!("Read {} blocks at {} pps", n, bps);
         }
     }
 }

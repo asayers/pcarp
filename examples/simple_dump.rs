@@ -12,13 +12,9 @@ fn main() {
             let file = File::open(&path).unwrap();
             let pcap = pcarp::Capture::new(file);
             for pkt in pcap {
-                match pkt {
-                    Ok(pkt) => {
-                        let ts = pkt.timestamp.unwrap_or(SystemTime::UNIX_EPOCH);
-                        println!("{:?}", ts);
-                    }
-                    Err(e) => panic!("{}", e),
-                }
+                let pkt = pkt.unwrap();
+                let ts = pkt.timestamp.unwrap_or(SystemTime::UNIX_EPOCH);
+                println!("{:?}", ts);
             }
         }
         "libpcap" => {
