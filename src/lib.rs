@@ -20,7 +20,7 @@ The entry point is [`Capture`](struct.Capture.html).
 # use std::fs::File;
 let file = File::open("integration_tests/10_sqldeveloper10_2016.pcapng.xz").unwrap();
 let uncompressed = xz2::read::XzDecoder::new(file);
-let mut pcap = Capture::new(uncompressed).unwrap();
+let mut pcap = Capture::new(uncompressed);
 
 for pkt in pcap {
     let pkt = pkt.unwrap();
@@ -98,16 +98,15 @@ pub struct Capture<R> {
     resolved_names: Vec<NameResolution>,
 }
 
-impl<R: Read> Capture<R> {
-    /// Create a new `Capture`.
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(rdr: R) -> Result<Capture<R>> {
-        Ok(Capture {
+impl<R> Capture<R> {
+    /// Create a new `Capture`
+    pub fn new(rdr: R) -> Capture<R> {
+        Capture {
             inner: BlockReader::new(rdr),
             current_section: 0,
             interfaces: Vec::new(),
             resolved_names: Vec::new(),
-        })
+        }
     }
 
     /// Rewind to the beginning of the pcapng file

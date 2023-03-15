@@ -10,7 +10,7 @@ fn main() {
     match backend.as_str() {
         "pcarp" => {
             let file = File::open(&path).unwrap();
-            let mut pcap = pcarp::Capture::new(file).unwrap();
+            let pcap = pcarp::Capture::new(file);
             for pkt in pcap {
                 match pkt {
                     Ok(pkt) => {

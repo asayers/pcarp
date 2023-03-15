@@ -3,7 +3,7 @@ use std::time::*;
 fn main() {
     let path = std::path::PathBuf::from(std::env::args().nth(1).unwrap());
     let file = std::fs::File::open(&path).unwrap();
-    let mut pcap = pcarp::Capture::new(file).unwrap();
+    let pcap = pcarp::Capture::new(file);
     let mut n1 = 0;
     let mut bytes1 = 0;
     let start = Instant::now();

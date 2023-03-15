@@ -14,7 +14,7 @@ fn main() {
     let opts = Opts::parse();
     env_logger::init();
     let file = File::open(&opts.pcap).unwrap();
-    let mut capture = Capture::new(file).unwrap();
+    let mut capture = Capture::new(file);
     for _ in 0..3 {
         let pkt = capture.next().unwrap();
         println!("{:?}", pkt);

@@ -32,14 +32,7 @@ fn main() {
             Box::new(file)
         }
     };
-    let mut pcap = match Capture::new(reader) {
-        Ok(x) => x,
-        Err(e) => {
-            eprintln!("{}", e);
-            std::process::exit(1);
-        }
-    };
-
+    let pcap = Capture::new(reader);
     let start = Instant::now();
     for (n, pkt) in pcap.enumerate() {
         match pkt {
