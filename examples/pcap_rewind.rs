@@ -1,7 +1,6 @@
 use bpaf::Bpaf;
-use pcarp::*;
-use std::fs::File;
-use std::path::PathBuf;
+use pcarp::Capture;
+use std::{fs::File, path::PathBuf};
 
 /// Example program that demonstrates the rewind support
 #[derive(Bpaf)]

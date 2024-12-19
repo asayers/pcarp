@@ -1,10 +1,12 @@
 use bpaf::Bpaf;
-use pcarp::*;
-use std::fs::File;
-use std::io::Read;
-use std::path::PathBuf;
-use std::time::*;
-use tracing::*;
+use pcarp::Capture;
+use std::{
+    fs::File,
+    io::Read,
+    path::PathBuf,
+    time::{Instant, SystemTime},
+};
+use tracing::{info, warn};
 
 /// Dumps the packets from a pcapng file
 #[derive(Bpaf)]

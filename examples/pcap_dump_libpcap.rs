@@ -1,7 +1,10 @@
 use bpaf::Bpaf;
-use pcap::*;
-use std::{path::PathBuf, time::*};
-use tracing::*;
+use pcap::{Capture, Error};
+use std::{
+    path::PathBuf,
+    time::{Duration, Instant},
+};
+use tracing::info;
 
 /// Dumps the packets from a pcapng file
 #[derive(Bpaf)]

@@ -1,4 +1,4 @@
-use pcarp::*;
+use pcarp::{Capture, Error, Packet};
 
 fn main() {
     env_logger::init();
