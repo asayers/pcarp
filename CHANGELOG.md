@@ -1,3 +1,6 @@
+## Unreleased
+* Refuse to parse legacy pcap format with a clearer error message
+
 ## 2.0.0
 
 * Make `Packet` fully owned (no lifetime parameter)
