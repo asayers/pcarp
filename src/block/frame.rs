@@ -1,4 +1,4 @@
-use crate::block::*;
+use crate::block::{trace, BlockType, Endianness};
 use bytes::Buf;
 use thiserror::Error;
 
