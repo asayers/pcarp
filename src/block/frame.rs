@@ -41,7 +41,10 @@ pub(crate) fn parse_frame(
             x => return Err(FrameError::DidntUnderstandMagicBytes(x.try_into().unwrap())),
         };
         trace!("Found SHB; setting endianness to {:?}", *endianness);
+    } else if block_type == 0xa1b2c3d4 || block_type == 0xd4c3b2a1 {
+        return Err(FrameError::LegacyPcap);
     }
+
     let block_type = BlockType::from(block_type);
 
     let block_len = read_u32(4, *endianness) as usize;
@@ -70,4 +73,6 @@ pub enum FrameError {
     BlockLengthMismatch(usize, usize),
     #[error("Block's length is {0} bytes, but the minimum length is 12")]
     BlockLengthTooSmall(usize),
+    #[error("Detected legacy pcap format")]
+    LegacyPcap,
 }
