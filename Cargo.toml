@@ -18,7 +18,7 @@ thiserror = "1.0.39"
 tracing = { version = "0.1.37", features = ["log"] }
 
 [dev-dependencies]
-clap = { version = "4.1.8", features = ["derive"] }
+bpaf = { version = "0.9", features = ["derive"] }
 env_logger = "0.10.0"
 flate2 = "1.0.25"
 humantime = "2.1.0"

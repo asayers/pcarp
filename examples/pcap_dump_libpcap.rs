@@ -1,17 +1,22 @@
-use clap::Parser;
-use pcap::*;
-use std::{path::PathBuf, time::*};
-use tracing::*;
+use bpaf::Bpaf;
+use pcap::{Capture, Error};
+use std::{
+    path::PathBuf,
+    time::{Duration, Instant},
+};
+use tracing::info;
 
 /// Dumps the packets from a pcapng file
-#[derive(Parser)]
+#[derive(Bpaf)]
+#[bpaf(options)]
 struct Opts {
     /// The pcapng file to read from
+    #[bpaf(positional)]
     pcap: PathBuf,
 }
 
 fn main() {
-    let opts = Opts::parse();
+    let opts = opts().fallback_to_usage().run();
 
     env_logger::init();
 

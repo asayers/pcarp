@@ -1,4 +1,4 @@
-use std::time::*;
+use std::time::Instant;
 
 fn main() {
     let path = std::path::PathBuf::from(std::env::args().nth(1).unwrap());

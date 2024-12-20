@@ -1,17 +1,18 @@
-use clap::Parser;
-use pcarp::*;
-use std::fs::File;
-use std::path::PathBuf;
+use bpaf::Bpaf;
+use pcarp::Capture;
+use std::{fs::File, path::PathBuf};
 
 /// Example program that demonstrates the rewind support
-#[derive(Parser)]
+#[derive(Bpaf)]
+#[bpaf(options)]
 struct Opts {
     /// The pcapng file to read from
+    #[bpaf(positional)]
     pcap: PathBuf,
 }
 
 fn main() {
-    let opts = Opts::parse();
+    let opts = opts().fallback_to_usage().run();
     env_logger::init();
     let file = File::open(&opts.pcap).unwrap();
     let mut capture = Capture::new(file);

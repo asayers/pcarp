@@ -1,6 +1,8 @@
-use pcap::*;
-use std::fs::File;
-use std::time::*;
+use pcap::{Capture, Error};
+use std::{
+    fs::File,
+    time::{Duration, SystemTime},
+};
 
 fn main() {
     let mut args = std::env::args();
